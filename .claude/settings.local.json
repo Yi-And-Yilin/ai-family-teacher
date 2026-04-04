@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze:*)",
+      "Read(//c/flutter/bin/**)",
+      "Bash(dir \"C:\\\\flutter\\\\bin\\\\flutter\")",
+      "Bash(export PATH=\"C:\\\\flutter\\\\bin:$PATH\")",
+      "Bash(flutter --version)",
+      "Bash(git config:*)",
+      "Bash($env:PATH=\"C:\\\\flutter\\\\bin;$env:PATH\")",
+      "Bash(\"C:\\\\flutter\\\\bin\\\\flutter\" --version)",
+      "Bash(\"C:\\\\flutter\\\\bin\\\\flutter\" analyze:*)",
+      "Bash(\"C:\\\\flutter\\\\bin\\\\flutter\" test:*)",
+      "Bash(dir /s /b flutter.exe)",
+      "Bash(findstr \"C:\"\")",
+      "Bash(dir:*)",
+      "Bash(echo:*)",
+      "Bash(where android:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path \"$env:LOCALAPPDATA\" -Filter 'Android*' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5 FullName\")",
+      "Bash(powershell -Command \"Test-Path 'C:\\\\Program Files\\\\Android\\\\Android Studio\\\\sdk'\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\Program Files\\\\Android\\\\Android Studio' | Select-Object Name\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin' -Filter 'sdkmanager*' | Select-Object Name\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin' | Select-Object Name\")",
+      "Bash(powershell -Command \"& 'C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin\\\\sdkmanager.bat' --sdk_root=C:\\\\Android\\\\SDK\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin' -Filter 'sdk*' | Select-Object Name\")",
+      "Bash(powershell -Command \"\\(Get-Content 'C:\\\\Program Files\\\\Android\\\\Android Studio\\\\license\\\\licenses' -ErrorAction SilentlyContinue\\) -ne $null\")",
+      "Bash(powershell -Command \"Test-Path 'C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin\\\\sdkmanager.bat'\")",
+      "Bash(powershell -Command \"Get-ChildItem 'C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin' | Where-Object { $_.Name -match 'sdk' }\")",
+      "Bash(powershell -Command \"Set-EnvironmentVariable -Name ANDROID_HOME -Value 'C:\\\\Android\\\\SDK' -Scope Process; Get-ChildItem -Path '$env:ANDROID_HOME' -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command \"Test-Path 'C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools'\")",
+      "Bash(setx:*)",
+      "Bash(\"C:\\\\flutter\\\\bin\\\\flutter.bat\" build:*)",
+      "Bash(ANDROID_HOME=\"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Android\\\\Sdk\" \"C:\\\\flutter\\\\bin\\\\flutter.bat\" build apk --release --split-per-abi)",
+      "Bash(findstr \"build.gradle\")",
+      "Bash(findstr \"lib\\\\pubspec.yaml\")",
+      "Bash(\"C:\\\\flutter\\\\bin\\\\flutter.bat\" config:*)",
+      "Bash(powershell -Command \"Test-Path 'C:\\\\小书童\\\\android'\")"
+    ]
+  },
+  "outputStyle": "default"
+}

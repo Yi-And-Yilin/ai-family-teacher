@@ -1,0 +1,38 @@
+{
+  "project": {
+    "name": "ai_family_teacher",
+    "type": "flutter",
+    "language": "dart",
+    "rootDir": ".",
+    "description": "AI家庭教师 - 小学生放学后AI学习助手"
+  },
+  "configuration": {
+    "autoLoadFiles": [
+      "CODEBUDDY.md",
+      "codebuddy_context.md",
+      "pubspec.yaml"
+    ],
+    "ignorePatterns": [
+      "**/build/**",
+      "**/.dart_tool/**",
+      "**/*.log"
+    ],
+    "preferredLanguages": ["zh-CN", "en"]
+  },
+  "context": {
+    "summaryFile": "CODEBUDDY.md",
+    "detailFile": "codebuddy_context.md",
+    "techStack": {
+      "framework": "flutter",
+      "stateManagement": "provider",
+      "database": "sqflite",
+      "aiService": "ollama"
+    }
+  },
+  "features": {
+    "components": ["dialog", "blackboard", "workbook", "notebook"],
+    "platforms": ["web", "android", "ios", "windows"],
+    "database": "sqlite",
+    "aiIntegration": "ollama"
+  }
+}

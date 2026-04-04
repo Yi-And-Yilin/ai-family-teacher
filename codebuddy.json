@@ -1,0 +1,71 @@
+{
+  "project": {
+    "name": "AI家庭教师",
+    "slug": "ai_family_teacher",
+    "type": "flutter_app",
+    "description": "小学生放学后的AI家庭教师应用",
+    "version": "1.0.0",
+    "repository": "",
+    "author": ""
+  },
+  "environment": {
+    "flutter_sdk": "C:\\flutter\\bin",
+    "project_root": "C:\\小书童",
+    "web_server": "http://localhost:8080",
+    "ai_service": "http://localhost:11434"
+  },
+  "context_files": {
+    "primary": "CODEBUDDY.md",
+    "secondary": "codebuddy_context.md",
+    "technical": "code_body.md",
+    "summary": "CONTEXT_SUMMARY.md"
+  },
+  "dependencies": {
+    "flutter": "^3.41.4",
+    "provider": "^6.1.1",
+    "sqflite": "^2.3.0",
+    "http": "^1.1.0",
+    "dio": "^5.4.0",
+    "shared_preferences": "^2.2.2"
+  },
+  "components": [
+    {
+      "name": "对话框",
+      "file": "lib/widgets/dialog_area.dart",
+      "description": "AI对话界面"
+    },
+    {
+      "name": "黑板",
+      "file": "lib/widgets/blackboard.dart",
+      "description": "AI绘制+手写教学"
+    },
+    {
+      "name": "作业本",
+      "file": "lib/widgets/workbook.dart",
+      "description": "题目练习与手写答题"
+    },
+    {
+      "name": "笔记本",
+      "file": "lib/widgets/notebook.dart",
+      "description": "文本笔记+AI整理"
+    }
+  ],
+  "current_status": {
+    "web_app": "running",
+    "database": "limited_on_web",
+    "ai_service": "needs_testing",
+    "notebook_features": "incomplete"
+  },
+  "tasks": {
+    "high_priority": [
+      "测试应用界面功能",
+      "验证Ollama AI服务连接",
+      "完善笔记本格式化功能"
+    ],
+    "medium_priority": [
+      "为Web平台添加替代存储方案",
+      "测试移动端适配",
+      "添加家长端功能"
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+name: ai_family_teacher
+description: AI家庭教师 - 孩子放学后的AI家庭教师
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # 状态管理
+  provider: ^6.1.1
+  
+  # 数据库
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  
+  # 网络请求
+  http: ^1.1.0
+  dio: ^5.4.0
+  
+  # JSON处理
+  json_annotation: ^4.8.1
+  
+  # 工具类
+  intl: ^0.18.1
+  shared_preferences: ^2.5.4
+  uuid: ^4.5.3
+  speech_to_text: ^7.3.0
+  flutter_tts: ^4.2.5
+  file_picker: ^10.3.10
+  
+  # 手写识别（可选）
+  # tflite_flutter: ^0.10.0
+  
+  # 语音识别（可选，后期添加）
+  # speech_to_text: ^6.6.0
+  # flutter_tts: ^3.8.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.7
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    # - assets/fonts/  # 暂时注释，字体文件未提供
+  
+  # fonts:
+  #   - family: NotoSansSC
+  #     fonts:
+  #       - asset: assets/fonts/NotoSansSC-Regular.ttf
+  #       - asset: assets/fonts/NotoSansSC-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/NotoSansSC-Bold.ttf
+  #         weight: 700
