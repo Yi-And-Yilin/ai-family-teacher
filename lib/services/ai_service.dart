@@ -1,34 +1,86 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:uuid/uuid.dart';
 import '../models/conversation.dart';
+import '../prompts/prompts.dart';
+import '../prompts/question_generator_prompt.dart';
+import '../prompts/answer_explainer_prompt.dart';
 import 'rag_service.dart';
+import 'api_config.dart';
+import 'agents_service.dart';
 
 /// --- 0. 日志工具 ---
 class AILogger {
+  static File? _logFile;
+  static bool _initialized = false;
+  static const int _maxLogSize = 5 * 1024 * 1024; // 5MB 最大日志大小
+  
+  /// 初始化日志文件
+  static Future<void> init() async {
+    if (_initialized) return;
+    
+    try {
+      // 获取项目根目录（通过查找 pubspec.yaml）
+      Directory currentDir = Directory.current;
+      _logFile = File('${currentDir.path}/log.txt');
+      
+      // 如果日志文件太大，清空它
+      if (await _logFile!.exists()) {
+        final size = await _logFile!.length();
+        if (size > _maxLogSize) {
+          await _logFile!.writeAsString('');
+        }
+      }
+      
+      _initialized = true;
+      
+      // 写入会话分隔符
+      await _writeToFile('\n${'='*60}\n新会话开始: ${DateTime.now().toIso8601String()}\n${'='*60}\n');
+    } catch (e) {
+      // 初始化失败，仅使用控制台输出
+      print('[AILogger] 日志文件初始化失败: $e');
+    }
+  }
+  
+  /// 写入日志到文件
+  static Future<void> _writeToFile(String content) async {
+    if (_logFile == null) return;
+    try {
+      await _logFile!.writeAsString(
+        content,
+        mode: FileMode.append,
+        flush: true,
+      );
+    } catch (_) {
+      // 忽略写入错误
+    }
+  }
+
   static void log(String tag, String message, {Map<String, dynamic>? data}) {
     final timestamp = DateTime.now().toIso8601String();
     final logMessage = '[$timestamp][$tag] $message';
     
-    // 输出到控制台（会被捕获到 log.txt）
+    // 输出到控制台
     print(logMessage);
+    
+    // 写入文件（异步，不阻塞）
+    _writeToFile('$logMessage\n');
     
     // 如果有额外数据，也打印
     if (data != null) {
       final dataStr = jsonEncode(data);
-      // 如果数据太长，截断显示
-      if (dataStr.length > 2000) {
-        print('[$timestamp][$tag] DATA(truncated): ${dataStr.substring(0, 2000)}...');
-      } else {
-        print('[$timestamp][$tag] DATA: $dataStr');
-      }
+      final dataLog = dataStr.length > 2000 
+          ? '[$timestamp][$tag] DATA(truncated): ${dataStr.substring(0, 2000)}...'
+          : '[$timestamp][$tag] DATA: $dataStr';
+      print(dataLog);
+      _writeToFile('$dataLog\n');
     }
   }
 
-  static void logRequest(String model, Map<String, dynamic> request) {
-    log('REQUEST', '发送请求到模型: $model');
+  static void logRequest(String model, Map<String, dynamic> request, {String? provider}) {
+    log('REQUEST', '发送请求到模型: $model (Provider: ${provider ?? "unknown"})');
     log('REQUEST_BODY', '', data: _sanitizeRequest(request));
   }
 
@@ -54,6 +106,15 @@ class AILogger {
             '${(img as String).substring(0, img.length > 50 ? 50 : img.length)}...(${img.length} chars)'
           ).toList();
         }
+        // GLM 格式的图片
+        if (msg is Map && msg['content'] is List) {
+          final content = List.from(msg['content']);
+          for (var item in content) {
+            if (item is Map && item['type'] == 'image_url') {
+              item['image_url'] = {'url': '[IMAGE_DATA_HIDDEN]'};
+            }
+          }
+        }
       }
       sanitized['messages'] = messages;
     }
@@ -61,121 +122,34 @@ class AILogger {
   }
 }
 
-/// --- 1. 工具定义 ---
-abstract class AICommandHandler {
-  String get name;
-  String get description;
-  Map<String, dynamic> get parameters;
-  bool get needsConfirmation => false;
-  Future<String> execute(Map<String, dynamic> arguments);
-}
-
-class CalculatorTool extends AICommandHandler {
-  @override String get name => 'calculator';
-  @override String get description => '执行数学计算。';
-  @override Map<String, dynamic> get parameters => {
-    'type': 'object',
-    'properties': {'expression': {'type': 'string'}},
-    'required': ['expression'],
-  };
-  @override Future<String> execute(Map<String, dynamic> arguments) async => '计算结果: ${arguments['expression']}';
-}
-
-class BlackboardTool extends AICommandHandler {
-  final Function(String) onUpdate;
-  BlackboardTool(this.onUpdate);
-  @override String get name => 'update_blackboard';
-  @override String get description => '在黑板上显示信息。';
-  @override Map<String, dynamic> get parameters => {
-    'type': 'object',
-    'properties': {'content': {'type': 'string'}},
-    'required': ['content'],
-  };
-  @override Future<String> execute(Map<String, dynamic> arguments) async {
-    onUpdate(arguments['content']);
-    return '黑板已更新。';
-  }
-}
-
-class ClearBlackboardTool extends AICommandHandler {
-  final Function() onClear;
-  ClearBlackboardTool(this.onClear);
-  @override String get name => 'clear_blackboard';
-  @override String get description => '清空黑板上的所有内容。这是不可逆的操作。';
-  @override Map<String, dynamic> get parameters => {'type': 'object', 'properties': {}};
-  @override bool get needsConfirmation => true;
-  @override Future<String> execute(Map<String, dynamic> arguments) async {
-    onClear();
-    return '黑板已清空。';
-  }
-}
-
-class MarkWorkbookTool extends AICommandHandler {
-  final Function(List<Map<String, dynamic>>) onMark;
-  MarkWorkbookTool(this.onMark);
-  @override String get name => 'mark_workbook';
-  @override String get description => '在作业本上进行红色批改。';
-  @override Map<String, dynamic> get parameters => {
-    'type': 'object',
-    'properties': {
-      'marks': {
-        'type': 'array',
-        'items': {'type': 'object', 'properties': {'type': {'type': 'string'}, 'content': {'type': 'string'}, 'position': {'type': 'object'}}}
-      }
-    },
-    'required': ['marks'],
-  };
-  @override Future<String> execute(Map<String, dynamic> arguments) async {
-    onMark(List<Map<String, dynamic>>.from(arguments['marks']));
-    return '作业本已批改。';
-  }
-}
-
-/// --- 2. 智能体定义 ---
+/// --- 1. 智能体定义 (纯行前缀协议，无工具调用) ---
 class StudyBuddyAgent {
-  final Function(String) onBlackboardUpdate;
-  final Function(List<Map<String, dynamic>>) onWorkbookMark;
-  final Function() onBlackboardClear;
-  StudyBuddyAgent(this.onBlackboardUpdate, this.onWorkbookMark, this.onBlackboardClear);
+  final AgentType agentType;
+  
+  StudyBuddyAgent({
+    this.agentType = AgentType.studyBuddy,
+  });
 
-  String get systemPrompt => '''你是"小书童"，一个亲切、耐心的AI学习伙伴。
-
-【你的身份】
-- 你是学生的好朋友和学习助手
-- 你擅长用简单易懂的方式讲解知识
-- 你会鼓励学生，帮助他们建立学习信心
-
-【你的能力】
-- 解答各学科问题（数学、语文、英语、科学等）
-- 批改作业并给出详细讲解
-- 根据学生的错题出变式题帮助巩固
-- 给出个性化的学习建议
-
-【你的风格】
-- 语言亲切自然，像朋友一样交流
-- 讲解时循序渐进，不跳步骤
-- 发现错误时先肯定对的，再指出问题
-- 多用鼓励的话语
-
-【可用工具】
-- calculator: 执行数学计算
-- update_blackboard: 在黑板显示讲解内容
-- mark_workbook: 批改作业
-- clear_blackboard: 清空黑板（需用户确认）''';
-
-  List<AICommandHandler> get tools => [
-    CalculatorTool(), 
-    BlackboardTool(onBlackboardUpdate), 
-    MarkWorkbookTool(onWorkbookMark),
-    ClearBlackboardTool(onBlackboardClear)
-  ];
+  String get systemPrompt {
+    switch (agentType) {
+      case AgentType.studyBuddy:
+        return baseSystemPrompt;
+      case AgentType.questionGenerator:
+        return questionGeneratorPrompt;
+      case AgentType.answerExplainer:
+        return answerExplainerPrompt;
+    }
+  }
+  
+  // 不再使用工具调用，完全依赖行前缀协议
+  // C> 聊天区, B> 黑板, W> 做题册, N> 笔记本
 }
 
 /// --- 3. 视觉模型服务 ---
 class VLService {
-  // 修改为电脑的局域网 IP，手机也能访问
-  final String _ollamaUrl = 'http://192.168.4.22:11434/api/chat';
-  final String _vlModel = 'qwen3-vl:8b';
+  final APIConfigService _config;
+  
+  VLService(this._config);
 
   static const String _vlSystemPrompt = '''你是"小书童"学习助手的图像解析模块。你的任务是解析学生上传的图片，提取其中的关键信息。
 
@@ -234,8 +208,73 @@ class VLService {
 - 图形信息要描述具体，便于后续理解''';
 
   Future<String> analyzeImage(String base64Image, {String? userMessage}) async {
+    if (_config.isGLM) {
+      return _analyzeWithGLM(base64Image, userMessage: userMessage);
+    } else {
+      return _analyzeWithOllama(base64Image, userMessage: userMessage);
+    }
+  }
+
+  /// 使用 GLM API 分析图片
+  Future<String> _analyzeWithGLM(String base64Image, {String? userMessage}) async {
     final requestBody = {
-      'model': _vlModel,
+      'model': _config.currentVisionModel,
+      'messages': [
+        {
+          'role': 'user',
+          'content': [
+            {
+              'type': 'text',
+              'text': userMessage ?? '请分析这张图片中的学习内容，提取题目、学生答案和批改标记。',
+            },
+            {
+              'type': 'image_url',
+              'image_url': {
+                'url': base64Image.startsWith('data:') 
+                    ? base64Image 
+                    : 'data:image/jpeg;base64,$base64Image',
+              },
+            },
+          ],
+        },
+      ],
+      'stream': false,
+    };
+
+    try {
+      final client = http.Client();
+      
+      try {
+        final response = await client.post(
+          Uri.parse(_config.currentApiUrl),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${_config.glmApiKey}',
+          },
+          body: jsonEncode(requestBody),
+        ).timeout(const Duration(minutes: 5));
+        
+        if (response.statusCode != 200) {
+          final errorBody = jsonDecode(response.body);
+          return '图片解析失败：${errorBody['error']?['message'] ?? response.statusCode}';
+        }
+        
+        final data = jsonDecode(response.body);
+        final content = data['choices']?[0]?['message']?['content'] ?? '';
+        
+        return content.isEmpty ? '无法解析图片内容' : content;
+      } finally {
+        client.close();
+      }
+    } catch (e) {
+      return '图片解析失败：$e';
+    }
+  }
+
+  /// 使用 Ollama API 分析图片
+  Future<String> _analyzeWithOllama(String base64Image, {String? userMessage}) async {
+    final requestBody = {
+      'model': _config.currentVisionModel,
       'messages': [
         {
           'role': 'user',
@@ -243,7 +282,7 @@ class VLService {
           'images': [base64Image],
         },
       ],
-      'stream': false,  // 使用非流式请求，更稳定
+      'stream': false,
       'options': {
         'num_ctx': 32768,
       },
@@ -254,7 +293,7 @@ class VLService {
       
       try {
         final response = await client.post(
-          Uri.parse(_ollamaUrl),
+          Uri.parse(_config.currentApiUrl),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(requestBody),
         ).timeout(const Duration(minutes: 5));
@@ -278,9 +317,7 @@ class VLService {
 
 /// --- 4. 核心服务 (多模态支持) ---
 class AIService {
-  // 修改为电脑的局域网 IP，手机也能访问
-  final String _ollamaUrl = 'http://192.168.4.22:11434/api/chat';
-  final String _model = 'qwen3.5:9b';
+  final APIConfigService _config;
   late final StudyBuddyAgent _agent;
   late final VLService _vlService;
   final RAGService _ragService = RAGService();
@@ -288,17 +325,14 @@ class AIService {
   final Future<bool> Function(String title, String message)? onRequireConfirmation;
 
   AIService({
+    required APIConfigService config,
     Function(String)? onBlackboardUpdate,
     Function(List<Map<String, dynamic>>)? onWorkbookMark,
     Function()? onBlackboardClear,
     this.onRequireConfirmation,
-  }) {
-    _agent = StudyBuddyAgent(
-      onBlackboardUpdate ?? (s) {},
-      onWorkbookMark ?? (m) {},
-      onBlackboardClear ?? () {},
-    );
-    _vlService = VLService();
+  }) : _config = config {
+    _agent = StudyBuddyAgent();
+    _vlService = VLService(_config);
   }
 
   /// 处理包含图片的消息（多模态流程）
@@ -326,126 +360,220 @@ class AIService {
       timestamp: DateTime.now(),
     ));
 
-    bool isDone = false;
-    int safetyCounter = 0;
-
-    while (!isDone && safetyCounter < 5) {
-      safetyCounter++;
-      
-      final messages = currentHistory.map((m) {
-        final map = <String, dynamic>{
-          'role': m.role.name,
-          'content': m.content,
-        };
-        if (m.toolCalls != null) {
-          map['tool_calls'] = m.toolCalls;
-        }
-        if (m.toolCallId != null) {
-          map['tool_call_id'] = m.toolCallId!;
-        }
-        return map;
-      }).toList();
-
-      final requestBody = {
-        'model': _model,
-        'messages': messages,
-        'tools': _agent.tools.map((t) => {
-          'type': 'function',
-          'function': {
-            'name': t.name,
-            'description': t.description,
-            'parameters': t.parameters,
-          },
-        }).toList(),
-        'stream': true,
-        'options': {
-          'num_ctx': 131072,  // 128K context window
-        },
-      };
-
-      // 记录请求日志
-      AILogger.logRequest(_model, requestBody);
-
-      // 使用 http 包发送请求
-      final httpRequest = http.Request('POST', Uri.parse(_ollamaUrl));
-      httpRequest.headers['Content-Type'] = 'application/json';
-      httpRequest.bodyBytes = utf8.encode(jsonEncode(requestBody));
-      
-      final streamedResponse = await http.Client().send(httpRequest);
-      String fullContent = '';
-      List<Map<String, dynamic>>? pendingToolCalls;
-
-      await for (final line in streamedResponse.stream.transform(utf8.decoder).transform(const LineSplitter())) {
-        if (line.isEmpty) continue;
-        try {
-          final data = jsonDecode(line);
-          if (data['message']?['content'] != null) {
-            fullContent += data['message']['content'];
-            yield data['message']['content'];
-          }
-          if (data['message']?['tool_calls'] != null) {
-            pendingToolCalls = List<Map<String, dynamic>>.from(data['message']['tool_calls']);
-          }
-          if (data['done'] == true) break;
-        } catch (_) {
-          // 忽略解析错误
-        }
+    if (_config.isGLM) {
+      // 使用 GLM API - 不再处理工具调用
+      await for (final text in _processWithGLM(currentHistory)) {
+        yield text;
       }
+    } else {
+      // 使用 Ollama API - 不再处理工具调用
+      await for (final text in _processWithOllama(currentHistory)) {
+        yield text;
+      }
+    }
+  }
 
-      // 记录响应日志
-      AILogger.logResponse(_model, fullContent);
+  /// 使用 GLM API 处理对话
+  Stream<String> _processWithGLM(List<Message> history) async* {
+    final messages = <Map<String, dynamic>>[];
+    
+    for (final m in history) {
+      if (m.role == MessageRole.system) {
+        messages.add({'role': 'system', 'content': m.content});
+      } else if (m.role == MessageRole.user) {
+        messages.add({'role': 'user', 'content': m.content});
+      } else if (m.role == MessageRole.assistant) {
+        if (m.toolCalls != null) {
+          messages.add({
+            'role': 'assistant',
+            'content': m.content,
+            'tool_calls': m.toolCalls,
+          });
+        } else {
+          messages.add({'role': 'assistant', 'content': m.content});
+        }
+      } else if (m.role == MessageRole.tool) {
+        messages.add({
+          'role': 'tool',
+          'tool_call_id': m.toolCallId,
+          'content': m.content,
+        });
+      }
+    }
 
-      if (pendingToolCalls != null) {
-        currentHistory.add(Message(
-          id: 'ai_$safetyCounter',
-          conversationId: 'current',
-          role: MessageRole.assistant,
-          content: fullContent,
-          toolCalls: pendingToolCalls,
-          timestamp: DateTime.now(),
-        ));
+    final requestBody = {
+      'model': _config.currentTextModel,
+      'messages': messages,
+      // 不再使用 tools，完全依赖行前缀协议
+      'stream': true,
+    };
+
+    AILogger.logRequest(_config.currentTextModel, requestBody, provider: 'GLM');
+
+    // ========== 调试日志：打印完整的 API 请求信息 ==========
+    debugPrint('');
+    debugPrint('========== GLM API 请求调试 ==========');
+    debugPrint('API URL: ${_config.currentApiUrl}');
+    debugPrint('Model: ${_config.currentTextModel}');
+    debugPrint('API Key (明文前8位): ${_config.glmApiKey.substring(0, _config.glmApiKey.length > 8 ? 8 : _config.glmApiKey.length)}...');
+    debugPrint('API Key 完整长度: ${_config.glmApiKey.length}');
+    debugPrint('API Key 完整明文: ${_config.glmApiKey}');
+    debugPrint('请求头: Content-Type: application/json');
+    debugPrint('请求头: Authorization: Bearer ${_config.glmApiKey}');
+    debugPrint('请求体 (JSON): ${jsonEncode(requestBody)}');
+    debugPrint('========================================');
+    debugPrint('');
+
+    final httpRequest = http.Request('POST', Uri.parse(_config.currentApiUrl));
+    httpRequest.headers['Content-Type'] = 'application/json';
+    httpRequest.headers['Authorization'] = 'Bearer ${_config.glmApiKey}';
+    httpRequest.bodyBytes = utf8.encode(jsonEncode(requestBody));
+    
+    final streamedResponse = await http.Client().send(httpRequest);
+    String fullContent = '';
+    List<Map<String, dynamic>>? pendingToolCalls;
+    String? toolCallId;
+    String? toolCallName;
+    String toolCallArgs = '';
+
+    await for (final line in streamedResponse.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+      // 打印每一行原始数据
+      print('[GLM_RAW] $line');
+      
+      if (line.isEmpty) continue;
+      
+      // GLM SSE 格式: data: {...}
+      if (line.startsWith('data:')) {
+        final dataStr = line.substring(5).trim();
+        if (dataStr == '[DONE]') continue;
         
-        for (final call in pendingToolCalls) {
-          final funcName = call['function']['name'];
-          final funcArgsStr = call['function']['arguments'];
-          final funcArgs = funcArgsStr is String ? jsonDecode(funcArgsStr) : funcArgsStr;
+        try {
+          final data = jsonDecode(dataStr);
+          print('[GLM_DECODED] ${jsonEncode(data)}');
           
-          final tool = _agent.tools.firstWhere((t) => t.name == funcName);
-
-          if (tool.needsConfirmation && onRequireConfirmation != null) {
-            yield '\n[等待用户确认操作: $funcName...]\n';
-            final confirmed = await onRequireConfirmation!(
-              '确认操作',
-              'AI 想要执行 $funcName，描述为：${tool.description}。你同意吗？',
-            );
-            if (!confirmed) {
-              final result = '用户拒绝了此操作。';
-              currentHistory.add(Message(
-                id: 'tool_$safetyCounter',
-                conversationId: 'current',
-                role: MessageRole.tool,
-                content: result,
-                toolCallId: call['id'],
-                timestamp: DateTime.now(),
-              ));
-              continue;
+          final delta = data['choices']?[0]?['delta'];
+          
+          if (delta != null) {
+            // 处理文本内容
+            if (delta['content'] != null) {
+              final content = delta['content'];
+              print('[GLM_CONTENT] $content');
+              fullContent += content;
+              yield content;
+            }
+            
+            // 处理工具调用
+            if (delta['tool_calls'] != null) {
+              final toolCalls = List.from(delta['tool_calls']);
+              for (final tc in toolCalls) {
+                if (tc['id'] != null) {
+                  toolCallId = tc['id'];
+                  pendingToolCalls ??= [];
+                }
+                if (tc['function']?['name'] != null) {
+                  toolCallName = tc['function']['name'];
+                }
+                if (tc['function']?['arguments'] != null) {
+                  toolCallArgs += tc['function']['arguments'];
+                }
+                
+                // 当工具调用完成时
+                if (toolCallId != null && toolCallName != null && toolCallArgs.isNotEmpty) {
+                  // 检查参数是否是完整的 JSON
+                  try {
+                    jsonDecode(toolCallArgs);
+                    pendingToolCalls!.add({
+                      'id': toolCallId,
+                      'type': 'function',
+                      'function': {
+                        'name': toolCallName,
+                        'arguments': toolCallArgs,
+                      },
+                    });
+                    toolCallId = null;
+                    toolCallName = null;
+                    toolCallArgs = '';
+                  } catch (_) {
+                    // 参数还未完整，继续累积
+                  }
+                }
+              }
             }
           }
-
-          final result = await tool.execute(funcArgs);
-          yield '\n[工具 $funcName 执行结果: $result]\n';
-          currentHistory.add(Message(
-            id: 'tool_$safetyCounter',
-            conversationId: 'current',
-            role: MessageRole.tool,
-            content: result,
-            toolCallId: call['id'],
-            timestamp: DateTime.now(),
-          ));
+        } catch (e) {
+          print('[GLM_PARSE_ERROR] $e, line: $dataStr');
         }
-      } else {
-        isDone = true;
       }
+    }
+
+    AILogger.logResponse(_config.currentTextModel, fullContent);
+
+    if (pendingToolCalls != null && pendingToolCalls!.isNotEmpty) {
+      yield '__TOOL_CALLS__:${jsonEncode(pendingToolCalls)}';
+    } else {
+      yield '__DONE__';
+    }
+  }
+
+  /// 使用 Ollama API 处理对话
+  Stream<String> _processWithOllama(List<Message> history) async* {
+    final messages = history.map((m) {
+      final map = <String, dynamic>{
+        'role': m.role.name,
+        'content': m.content,
+      };
+      if (m.toolCalls != null) {
+        map['tool_calls'] = m.toolCalls;
+      }
+      if (m.toolCallId != null) {
+        map['tool_call_id'] = m.toolCallId!;
+      }
+      return map;
+    }).toList();
+
+    final requestBody = {
+      'model': _config.currentTextModel,
+      'messages': messages,
+      // 不再使用 tools，完全依赖行前缀协议
+      'stream': true,
+      'options': {
+        'num_ctx': 131072,
+      },
+    };
+
+    AILogger.logRequest(_config.currentTextModel, requestBody, provider: 'Ollama');
+
+    final httpRequest = http.Request('POST', Uri.parse(_config.currentApiUrl));
+    httpRequest.headers['Content-Type'] = 'application/json';
+    httpRequest.bodyBytes = utf8.encode(jsonEncode(requestBody));
+    
+    final streamedResponse = await http.Client().send(httpRequest);
+    String fullContent = '';
+    List<Map<String, dynamic>>? pendingToolCalls;
+
+    await for (final line in streamedResponse.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+      if (line.isEmpty) continue;
+      try {
+        final data = jsonDecode(line);
+        if (data['message']?['content'] != null) {
+          fullContent += data['message']['content'];
+          yield data['message']['content'];
+        }
+        if (data['message']?['tool_calls'] != null) {
+          pendingToolCalls = List<Map<String, dynamic>>.from(data['message']['tool_calls']);
+        }
+        if (data['done'] == true) break;
+      } catch (_) {
+        // 忽略解析错误
+      }
+    }
+
+    AILogger.logResponse(_config.currentTextModel, fullContent);
+
+    if (pendingToolCalls != null) {
+      yield '__TOOL_CALLS__:${jsonEncode(pendingToolCalls)}';
+    } else {
+      yield '__DONE__';
     }
   }
 
@@ -459,6 +587,7 @@ class AIService {
       'has_images': images != null && images.isNotEmpty,
       'image_count': images?.length ?? 0,
       'history_count': history.length,
+      'provider': _config.isGLM ? 'GLM' : 'Ollama',
     });
 
     // 如果有图片，先调用 VL 模型
@@ -503,15 +632,108 @@ class AIService {
       AILogger.log('FLOW', '开始调用文本模型进行推理');
       
       // 继续用文本模型处理
-      await for (final text in processDialogue(newHistory)) {
-        yield ChatChunk(content: text);
+      await for (final chunk in _processWithStreamingParser(newHistory)) {
+        yield chunk;
       }
     } else {
       // 没有图片，直接用文本模型处理
-      await for (final text in processDialogue(history)) {
-        yield ChatChunk(content: text);
+      await for (final chunk in _processWithStreamingParser(history)) {
+        yield chunk;
       }
     }
+  }
+  
+  /// 使用流式解析器处理响应
+  /// 核心改进：chatContent 现在只包含 C> 的内容（已去掉前缀）
+  /// blackboardContent 等只包含对应前缀的内容（已去掉前缀）
+  Stream<ChatChunk> _processWithStreamingParser(List<Message> history) async* {
+    String fullContent = '';
+    String currentChatContent = '';      // 当前 chunk 的聊天内容（已去掉 C> 前缀）
+    String currentBlackboardContent = '';
+    String currentWorkbookContent = '';
+    String currentNotebookContent = '';
+    QuestionResponse? questionResponse;
+    
+    AILogger.log('STREAM_PARSER', '开始流式解析（行前缀协议）');
+    
+    // 创建流式解析器
+    final parser = StreamingResponseParser(
+      onText: (text) {
+        // onText 只被 C> 行调用，text 已经去掉了 C> 前缀
+        fullContent += text;
+        currentChatContent += text;
+      },
+      onBlackboard: (content) {
+        AILogger.log('LINE_PREFIX', 'B: $content');
+        currentBlackboardContent += content;
+      },
+      onWorkbook: (content) {
+        AILogger.log('LINE_PREFIX', 'W: $content');
+        currentWorkbookContent += content + '\n';
+      },
+      onNotebook: (content) {
+        AILogger.log('LINE_PREFIX', 'N: $content');
+        currentNotebookContent += content + '\n';
+      },
+      onQuestion: (question) {
+        AILogger.log('STREAM_PARSER', '✓ 收到题目响应');
+        questionResponse = question;
+      },
+    );
+    
+    await for (final text in processDialogue(history)) {
+      // 处理内部标记
+      if (text == '__DONE__') {
+        AILogger.log('STREAM_PARSER', '流式解析完成', data: {
+          'has_question': questionResponse != null,
+          'has_blackboard': currentBlackboardContent.isNotEmpty,
+          'has_workbook': currentWorkbookContent.isNotEmpty,
+          'has_notebook': currentNotebookContent.isNotEmpty,
+          'content_length': fullContent.length,
+        });
+        
+        // 输出最后的完整响应
+        if (questionResponse != null) {
+          yield ChatChunk(
+            content: fullContent,
+            questionResponse: questionResponse,
+          );
+        }
+        yield ChatChunk(done: true);
+        break;
+      }
+      
+      if (text.startsWith('__TOOL_CALLS__:')) {
+        AILogger.log('STREAM_PARSER', '检测到工具调用（已弃用，忽略）');
+        // 不再处理工具调用
+        continue;
+      }
+      
+      // 将文本传递给解析器
+      parser.parse(text);
+      
+      // 输出流式块
+      // 注意：chatContent 已经去掉了 C> 前缀
+      // blackboardContent 等已经去掉了对应的前缀
+      if (currentChatContent.isNotEmpty || 
+          currentBlackboardContent.isNotEmpty ||
+          currentWorkbookContent.isNotEmpty ||
+          currentNotebookContent.isNotEmpty) {
+        yield ChatChunk(
+          content: currentChatContent.isNotEmpty ? currentChatContent : null,
+          blackboardContent: currentBlackboardContent.isNotEmpty ? currentBlackboardContent : null,
+          workbookContent: currentWorkbookContent.isNotEmpty ? currentWorkbookContent : null,
+          notebookContent: currentNotebookContent.isNotEmpty ? currentNotebookContent : null,
+        );
+        // 重置当前 chunk 的内容
+        currentChatContent = '';
+        currentBlackboardContent = '';
+        currentWorkbookContent = '';
+        currentNotebookContent = '';
+      }
+    }
+    
+    parser.finish();
   }
 }
 
@@ -519,12 +741,39 @@ class ChatChunk {
   final String? content;
   final String? thinking;
   final List<Map<String, dynamic>>? toolCalls;
+  final BlackboardCommand? blackboardCommand; // 保留兼容旧格式
+  final QuestionResponse? questionResponse;
   final bool done;
+  
+  // 行前缀协议新增字段
+  final String? blackboardContent;  // B: 黑板内容
+  final String? workbookContent;    // W: 做题册内容
+  final String? notebookContent;    // N: 笔记本内容
   
   ChatChunk({
     this.content,
     this.thinking,
     this.toolCalls,
+    this.blackboardCommand,
+    this.questionResponse,
     this.done = false,
+    this.blackboardContent,
+    this.workbookContent,
+    this.notebookContent,
   });
+  
+  /// 是否包含黑板命令（旧格式）
+  bool get hasBlackboardCommand => blackboardCommand != null;
+  
+  /// 是否包含黑板内容（新格式）
+  bool get hasBlackboardContent => blackboardContent != null && blackboardContent!.isNotEmpty;
+  
+  /// 是否包含做题册内容
+  bool get hasWorkbookContent => workbookContent != null && workbookContent!.isNotEmpty;
+  
+  /// 是否包含笔记本内容
+  bool get hasNotebookContent => notebookContent != null && notebookContent!.isNotEmpty;
+  
+  /// 是否包含题目响应
+  bool get hasQuestionResponse => questionResponse != null;
 }

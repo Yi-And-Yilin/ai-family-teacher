@@ -1,0 +1,481 @@
+# 做题册与笔记本系统文档
+
+## 1. 概述
+
+做题册（Workbook）和笔记本（Notebook）是"小书童"学习助手的两个核心组件：
+- **做题册**：用于展示AI出的题目、选项，支持批改标记
+- **笔记本**：用于学生记录学习笔记、知识点总结
+
+## 2. 做题册系统 (Workbook)
+
+### 2.1 组件结构
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   WorkbookWidget                     │
+├─────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────┐    │
+│  │              纸张背景层                        │    │
+│  │         护眼米黄 #FFFDE7                      │    │
+│  └─────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────┐    │
+│  │           横线 + 红色边线                      │    │
+│  │       (_WorkbookPaperPainter)                │    │
+│  └─────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────┐    │
+│  │            AI批改痕迹层                        │    │
+│  │        (_WorkbookMarkPainter)                │    │
+│  └─────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────┐    │
+│  │              题目内容区                        │    │
+│  │      (streamingWorkbookContent)              │    │
+│  └─────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────┘
+```
+
+### 2.2 数据模型
+
+#### 流式题目内容
+
+```dart
+// AppProvider 中的状态
+String _streamingWorkbookContent = '';
+
+// 追加内容
+void appendToWorkbookContent(String content) {
+  _streamingWorkbookContent += content + '\n';
+  notifyListeners();
+}
+```
+
+#### 批改标记
+
+```dart
+// 批改标记数据结构
+List<Map<String, dynamic>> _workbookMarks = [
+  {
+    'type': 'tick' | 'cross' | 'circle' | 'text',
+    'position': {'x': double, 'y': double},
+    'content': String,  // 仅 type='text' 时使用
+  },
+];
+```
+
+### 2.3 行前缀协议
+
+AI输出使用 `W>` 前缀标识做题册内容：
+
+```
+W> 【题目】
+W> 水果店里，苹果每个5元，小明买了3个苹果...
+W> 请问小明一共花了多少钱？
+W> A. 15元
+W> B. 21元
+W> C. 24元
+W> D. 27元
+```
+
+### 2.4 核心代码
+
+#### WorkbookWidget (`workbook.dart`)
+
+```dart
+class WorkbookWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final appProvider = Provider.of<AppProvider>(context);
+    final workbookContent = appProvider.streamingWorkbookContent;
+    final hasContent = workbookContent.isNotEmpty;
+    
+    return Container(
+      // 桌面背景
+      color: const Color(0xFFE0E0E0),
+      child: Container(
+        // 护眼米黄纸张
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFDE7),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Stack(
+          children: [
+            // 横线和红色边线
+            Positioned.fill(child: CustomPaint(
+              painter: _WorkbookPaperPainter()
+            )),
+            
+            // AI批改痕迹
+            Positioned.fill(child: CustomPaint(
+              painter: _WorkbookMarkPainter(appProvider.workbookMarks)
+            )),
+            
+            // 题目内容
+            if (hasContent)
+              Text(workbookContent, ...),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### 批改痕迹绘制
+
+```dart
+class _WorkbookMarkPainter extends CustomPainter {
+  final List<Map<String, dynamic>> marks;
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.red.withOpacity(0.8)
+      ..strokeWidth = 2.0;
+    
+    for (final mark in marks) {
+      final type = mark['type'];
+      final dx = mark['position']['x'];
+      final dy = mark['position']['y'];
+      
+      if (type == 'tick') {
+        // 画对勾 ✓
+        final path = Path()
+          ..moveTo(dx - 10, dy)
+          ..lineTo(dx - 2, dy + 10)
+          ..lineTo(dx + 15, dy - 15);
+        canvas.drawPath(path, paint);
+      } else if (type == 'cross') {
+        // 画叉 ✗
+        canvas.drawLine(Offset(dx - 10, dy - 10), Offset(dx + 10, dy + 10), paint);
+        canvas.drawLine(Offset(dx + 10, dy - 10), Offset(dx - 10, dy + 10), paint);
+      } else if (type == 'circle') {
+        // 画圈 ○
+        canvas.drawCircle(Offset(dx, dy), 30, paint);
+      }
+    }
+  }
+}
+```
+
+### 2.5 使用示例
+
+#### AI输出完整示例
+
+```
+C> 好的，让我来给你出一道三年级的数学应用题！
+W> 【题目】
+W> 水果店里，苹果每个5元，小明买了3个苹果，又买了2个橘子，每个橘子3元。
+W> 请问小明一共花了多少钱？
+W> 
+W> A. 15元
+W> B. 21元
+W> C. 24元
+W> D. 27元
+C> 你可以先算苹果的钱：5 × 3 = 15元
+C> 再算橘子的钱：3 × 2 = 6元
+C> 最后加起来：15 + 6 = 21元
+C> 正确答案是 B，你答对了吗？
+```
+
+## 3. 笔记本系统 (Notebook)
+
+### 3.1 组件结构
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   NotebookWidget                     │
+├─────────────────────────────────────────────────────┤
+│  ┌───┐                                              │
+│  │ ∞ │  螺旋装订孔（左侧装饰）                        │
+│  │ ∞ │                                              │
+│  │ ∞ │                                              │
+│  └───┘                                              │
+│  ┌─────────────────────────────────────────────┐    │
+│  │              方格背景纹理                      │    │
+│  │        (_NotebookGridPainter)                │    │
+│  └─────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────┐    │
+│  │              笔记输入区                        │    │
+│  │           (TextField)                        │    │
+│  └─────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────┘
+```
+
+### 3.2 数据模型
+
+```dart
+// AppProvider 中的状态
+String _streamingNotebookContent = '';  // AI输出的笔记内容
+String _noteContent = '';               // 用户输入的笔记内容
+
+// 追加AI内容
+void appendToNotebookContent(String content) {
+  _streamingNotebookContent += content + '\n';
+  notifyListeners();
+}
+
+// 更新用户笔记
+void updateNoteContent(String content) {
+  _noteContent = content;
+  notifyListeners();
+}
+```
+
+### 3.3 行前缀协议
+
+AI输出使用 `N>` 前缀标识笔记本内容：
+
+```
+N> 【重点笔记】一元二次方程求根公式
+N> 
+N> 1. 标准形式：ax² + bx + c = 0 (a ≠ 0)
+N> 2. 求根公式：x = (-b ± √(b²-4ac)) / 2a
+N> 3. 判别式：Δ = b² - 4ac
+N>    - Δ > 0：两个不等实根
+N>    - Δ = 0：两个相等实根
+N>    - Δ < 0：无实根
+```
+
+### 3.4 核心代码
+
+#### NotebookWidget (`notebook.dart`)
+
+```dart
+class NotebookWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      // 灰白色桌面
+      color: const Color(0xFFF0F0F0),
+      child: Stack(
+        children: [
+          // 螺旋装订孔
+          Positioned(
+            left: -15,
+            child: Column(
+              children: List.generate(ringCount, (_) => _buildBindingRing()),
+            ),
+          ),
+          
+          // 笔记本主体
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                // 多张纸堆叠效果
+                BoxShadow(color: Colors.white, offset: Offset(2, 2)),
+                BoxShadow(color: Colors.grey[300]!, offset: Offset(3, 3)),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // 方格背景
+                Positioned.fill(child: CustomPaint(
+                  painter: _NotebookGridPainter()
+                )),
+                
+                // 笔记输入区
+                TextField(
+                  maxLines: null,
+                  expands: true,
+                  decoration: InputDecoration(
+                    hintText: '开始记录学习笔记...',
+                  ),
+                  onChanged: (content) => appProvider.updateNoteContent(content),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+#### 方格背景绘制
+
+```dart
+class _NotebookGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.blue.withOpacity(0.05)
+      ..strokeWidth = 1.0;
+    
+    const double gridSize = 20.0;
+    
+    // 绘制垂直线
+    for (double x = 0; x < size.width; x += gridSize) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    
+    // 绘制水平线
+    for (double y = 0; y < size.height; y += gridSize) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+}
+```
+
+## 4. 数据流总览
+
+### 4.1 做题册数据流
+
+```
+用户请求："给我出一道数学题"
+        ↓
+AI处理 → 输出 W> 前缀内容
+        ↓
+StreamingResponseParser 解析
+        ↓
+onWorkbook(content) 回调
+        ↓
+AppProvider.appendToWorkbookContent(content)
+        ↓
+_notifyListeners()
+        ↓
+WorkbookWidget 重建 → 显示题目
+```
+
+### 4.2 笔记本数据流
+
+```
+用户请求："帮我总结这个知识点"
+        ↓
+AI处理 → 输出 N> 前缀内容
+        ↓
+StreamingResponseParser 解析
+        ↓
+onNotebook(content) 回调
+        ↓
+AppProvider.appendToNotebookContent(content)
+        ↓
+_notifyListeners()
+        ↓
+NotebookWidget 重建 → 显示笔记
+```
+
+## 5. 主要文件和函数
+
+### 5.1 文件列表
+
+| 文件 | 职责 |
+|------|------|
+| `lib/widgets/workbook.dart` | 做题册组件UI |
+| `lib/widgets/notebook.dart` | 笔记本组件UI |
+| `lib/providers/app_provider.dart` | 状态管理 |
+| `lib/services/agents_service.dart` | 流式解析器 |
+
+### 5.2 AppProvider 关键方法
+
+```dart
+// 做题册内容管理
+void appendToWorkbookContent(String content);
+void clearWorkbookContent();
+
+// 笔记本内容管理
+void appendToNotebookContent(String content);
+void clearNotebookContent();
+void updateNoteContent(String content);  // 用户输入
+
+// 批改标记管理
+void updateWorkbookMarks(List<Map<String, dynamic>> marks);
+
+// 清空所有流式内容
+void clearAllStreamingContent();
+```
+
+## 6. 样式配置
+
+### 6.1 做题册样式
+
+```dart
+// 桌面背景
+Color(0xFFE0E0E0)  // 灰色
+
+// 纸张颜色
+Color(0xFFFFFDE7)  // 护眼米黄
+
+// 横线颜色
+Colors.blue.withOpacity(0.1)  // 淡蓝
+
+// 红色边线
+Colors.red.withOpacity(0.2)   // 淡红
+
+// 题目文字
+TextStyle(
+  fontSize: 18,
+  fontWeight: FontWeight.bold,
+  color: Color(0xFF2C3E50),
+  height: 1.8,
+)
+```
+
+### 6.2 笔记本样式
+
+```dart
+// 桌面背景
+Color(0xFFF0F0F0)  // 灰白
+
+// 纸张颜色
+Colors.white       // 白色
+
+// 方格线颜色
+Colors.blue.withOpacity(0.05)  // 极淡蓝
+
+// 标题文字
+TextStyle(
+  fontSize: 24,
+  fontWeight: FontWeight.bold,
+  color: Colors.blueGrey,
+)
+```
+
+## 7. 组件切换机制
+
+### 7.1 ComponentType 枚举
+
+```dart
+enum ComponentType {
+  landing,        // 首页
+  blackboard,     // 黑板
+  workbook,       // 做题册
+  notebook,       // 笔记本
+  dialog,         // 对话框
+  blackboardChat, // 黑板+聊天模式
+}
+```
+
+### 7.2 自动切换逻辑
+
+**当前实现：**
+- 黑板有内容时：自动切换到 `blackboardChat`
+- 做题册/笔记本：**没有自动切换**（需要手动点击或添加切换逻辑）
+
+**建议增强：**
+```dart
+// 在 dialog_area.dart 中添加
+if (chunk.hasWorkbookContent) {
+  appProvider.appendToWorkbookContent(chunk.workbookContent!);
+  // 建议：添加自动切换
+  appProvider.switchTo(ComponentType.workbook);
+}
+```
+
+## 8. 使用注意事项
+
+1. **前缀必须正确**：
+   - 做题册内容必须以 `W>` 开头
+   - 笔记本内容必须以 `N>` 开头
+
+2. **内容换行**：
+   - 每行内容单独一个前缀
+   - 选项、题目分行书写
+
+3. **批改标记**：
+   - 批改标记需要手动调用 `updateWorkbookMarks()`
+   - 位置坐标相对于做题册组件
+
+4. **清空内容**：
+   - 开始新对话时调用 `clearAllStreamingContent()`
+   - 清空黑板、做题册、笔记本内容

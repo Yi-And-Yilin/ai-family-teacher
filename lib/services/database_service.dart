@@ -507,7 +507,12 @@ class DatabaseService {
   
   Future<int> insertMessage(Message message) async {
     final db = await database;
-    return await db.insert('messages', message.toMap());
+    // 使用 INSERT OR REPLACE 避免唯一约束冲突
+    return await db.insert(
+      'messages', 
+      message.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
   
   Future<List<Message>> getMessages(String conversationId, {int limit = 100}) async {

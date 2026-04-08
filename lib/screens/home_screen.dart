@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../widgets/component_controller.dart';
 import '../widgets/dialog_area.dart';
+import 'settings_screen.dart';
+import 'api_test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -346,6 +348,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActiveView(AppProvider appProvider) {
+    // 如果是黑板+聊天模式，使用特殊布局
+    if (appProvider.currentComponent == ComponentType.blackboardChat) {
+      return Column(
+        children: [
+          _buildSwitcherBar(appProvider),
+          Expanded(
+            child: ComponentController(
+              currentComponent: appProvider.currentComponent,
+            ),
+          ),
+        ],
+      );
+    }
+    
     return Column(
       children: [
         _buildSwitcherBar(appProvider),
@@ -739,7 +755,21 @@ class _ProfileMenuSheet extends StatelessWidget {
             title: '设置',
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon(context, '设置');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+          ),
+          _MenuItem(
+            icon: Icons.science,
+            title: 'API 测试',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ApiTestScreen()),
+              );
             },
           ),
           _MenuItem(

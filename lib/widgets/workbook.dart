@@ -9,6 +9,8 @@ class WorkbookWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
+    final workbookContent = appProvider.streamingWorkbookContent;
+    final hasContent = workbookContent.isNotEmpty;
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -49,30 +51,29 @@ class WorkbookWidget extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   
-                  // 题目区域
-                  Text(
-                    '题目：${appProvider.currentQuestion.isEmpty ? "请在对话框中要求 AI 出题" : appProvider.currentQuestion}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2C3E50),
-                      height: 1.5,
-                    ),
-                  ),
-                  const Divider(height: 40, color: Colors.transparent),
-                  
-                  // 答题区域（模拟输入）
-                  const Expanded(
-                    child: TextField(
-                      maxLines: null,
-                      expands: true,
-                      decoration: InputDecoration(
-                        hintText: '在这里写下你的答案...',
-                        hintStyle: TextStyle(color: Colors.black26),
-                        border: InputBorder.none,
-                      ),
-                      style: TextStyle(fontSize: 16, height: 1.875, color: Colors.black87), // 1.875 对应横线间距
-                    ),
+                  // 题目区域 - 显示 W> 分流的内容
+                  Expanded(
+                    child: hasContent
+                        ? SingleChildScrollView(
+                            child: Text(
+                              workbookContent,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2C3E50),
+                                height: 1.8,
+                              ),
+                            ),
+                          )
+                        : const Center(
+                            child: Text(
+                              '请在对话框中要求 AI 出题',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black38,
+                              ),
+                            ),
+                          ),
                   ),
                 ],
               ),

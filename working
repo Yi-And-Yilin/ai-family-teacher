@@ -1,0 +1,71 @@
+# Session Summary - 2026-04-07
+
+## Background
+
+用户正在开发一个 Flutter 教育应用 "AI Family Teacher"（小书童），包含以下组件：
+- **聊天区 (Chat)**: 显示 AI 对话
+- **黑板 (Blackboard)**: 显示公式、步骤
+- **做题册 (Workbook)**: 显示题目、练习
+- **笔记本 (Notebook)**: 显示笔记、总结
+
+## 问题
+
+### 1. 语音输入无反应
+- 用户点击麦克风按钮说话后，没有任何反应
+- 日志中没有 `[VOICE]` 相关输出
+- **状态**: 待调查
+
+### 2. TTS 朗读问题（已修复）
+- AI 返回的内容带有 `C:` `B:` `W:` `N:` 前缀
+- TTS 会把前缀读成 "C点"、"W点"
+- **解决**: 改成 `C>` `B>` `W>` `N>` 格式，并在 TTS 中过滤
+
+### 3. 喇叭按钮无效（已修复）
+- 点击喇叭关闭语音时，声音继续播放
+- **解决**: 关闭时调用 `stopSpeaking()`
+
+### 4. 内容分流问题（核心问题）
+- **现象**: 所有内容（包括 `W>` `B>` 开头的）都显示在聊天框里
+- **期望**: 
+  - `C> xxx` → 聊天框
+  - `B> xxx` → 黑板
+  - `W> xxx` → 做题册
+  - `N> xxx` → 笔记本
+- **根因**: WorkbookWidget 显示的是 `currentQuestion`，而不是 `streamingWorkbookContent`
+
+## 已完成的修改
+
+| 文件 | 修改内容 |
+|------|----------|
+| `lib/prompts/base_prompt.dart` | 前缀格式从 `C:` 改成 `C>` |
+| `lib/services/agents_service.dart` | 解析器识别新的 `>` 格式 |
+| `lib/services/voice_service.dart` | TTS 过滤前缀和 LaTeX 公式 |
+| `lib/widgets/dialog_area.dart` | 喇叭按钮停止语音；聊天内容过滤 |
+| `lib/widgets/workbook.dart` | 显示 `streamingWorkbookContent` |
+
+## 待完成
+
+1. **验证内容分流**: 重新运行应用，确认 `W>` 内容显示在做题册
+2. **修复语音输入**: 麦克风按钮点击后没有任何反应
+3. **删除测试文件**: `test_filter.dart`
+
+## 技术架构
+
+```
+AI 返回内容
+    │
+    ▼
+StreamingResponseParser (agents_service.dart)
+    │ 检测行前缀 C>/B>/W>/N>
+    │
+    ├─► C> → onText() → fullContent → 聊天框
+    ├─► B> → onBlackboard() → streamingBlackboardContent → 黑板
+    ├─► W> → onWorkbook() → streamingWorkbookContent → 做题册
+    └─► N> → onNotebook() → streamingNotebookContent → 笔记本
+```
+
+## 下一步
+
+1. 重新运行应用测试修改
+2. 调查语音输入问题（可能需要检查 Windows 麦克风权限）
+3. 验证内容分流是否正常工作

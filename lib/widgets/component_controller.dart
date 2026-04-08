@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'blackboard.dart';
 import 'workbook.dart';
 import 'notebook.dart';
+import 'blackboard_chat_view.dart';
 import '../providers/app_provider.dart';
 
 class ComponentController extends StatelessWidget {
@@ -24,6 +25,8 @@ class ComponentController extends StatelessWidget {
         return const WorkbookWidget();
       case ComponentType.notebook:
         return const NotebookWidget();
+      case ComponentType.blackboardChat:
+        return const BlackboardChatView();
       case ComponentType.dialog:
       default:
         return const _EmptyComponent();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'dart:ui' as ui;
 
 import '../providers/app_provider.dart';
@@ -14,7 +15,7 @@ class BlackboardWidget extends StatefulWidget {
 class _BlackboardWidgetState extends State<BlackboardWidget> {
   final List<Stroke> _strokes = [];
   Color _currentColor = Colors.white;
-  final double _currentWidth = 3.0; // 稍微加粗一点模拟粉笔
+  final double _currentWidth = 3.0;
   List<Offset> _currentPoints = [];
   bool _isDrawing = false;
   
@@ -22,11 +23,12 @@ class _BlackboardWidgetState extends State<BlackboardWidget> {
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
     final blackboardElements = appProvider.blackboardElements;
+    final streamingContent = appProvider.streamingBlackboardContent;
     
     return Container(
-      padding: const EdgeInsets.all(12), // 留出木质边框的距离
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF5D4037), // 木质边框颜色
+        color: const Color(0xFF5D4037),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
@@ -38,7 +40,7 @@ class _BlackboardWidgetState extends State<BlackboardWidget> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1B3022), // 经典黑板绿
+          color: const Color(0xFF1B3022),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: Colors.black26, width: 2),
         ),
@@ -46,7 +48,7 @@ class _BlackboardWidgetState extends State<BlackboardWidget> {
           borderRadius: BorderRadius.circular(4),
           child: Stack(
             children: [
-              // 黑板背景纹理（模拟粉笔灰痕迹）
+              // 黑板背景纹理
               Positioned.fill(
                 child: Opacity(
                   opacity: 0.1,
@@ -54,11 +56,20 @@ class _BlackboardWidgetState extends State<BlackboardWidget> {
                 ),
               ),
               
-              // AI绘制的内容
+              // AI绘制的内容（手写笔迹层）
               CustomPaint(
                 painter: _BlackboardPainter(blackboardElements),
                 size: Size.infinite,
               ),
+              
+              // 流式文本内容层（支持LaTeX）
+              if (streamingContent.isNotEmpty)
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  right: 20,
+                  child: _buildStreamingContent(streamingContent),
+                ),
               
               // 孩子手写层
               _buildStudentDrawingLayer(),
@@ -71,6 +82,111 @@ class _BlackboardWidgetState extends State<BlackboardWidget> {
             ],
           ),
         ),
+      ),
+    );
+  }
+  
+  /// 构建流式内容（支持LaTeX公式）
+  Widget _buildStreamingContent(String content) {
+    final lines = content.split('\n');
+    final widgets = <Widget>[];
+    
+    for (final line in lines) {
+      if (line.trim().isEmpty) continue;
+      
+      // 检测是否包含LaTeX公式 $$...$$
+      if (line.contains(r'$$')) {
+        widgets.add(_buildLatexLine(line));
+      } else {
+        widgets.add(_buildTextLine(line));
+      }
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+  
+  /// 构建包含LaTeX公式的行
+  Widget _buildLatexLine(String line) {
+    final parts = <Widget>[];
+    final regex = RegExp(r'\$\$(.+?)\$\$');
+    int lastEnd = 0;
+    
+    for (final match in regex.allMatches(line)) {
+      // 添加公式前的文本
+      if (match.start > lastEnd) {
+        final text = line.substring(lastEnd, match.start);
+        if (text.isNotEmpty) {
+          parts.add(_buildTextSpan(text));
+        }
+      }
+      
+      // 添加LaTeX公式
+      final latex = match.group(1) ?? '';
+      parts.add(_buildLatexFormula(latex));
+      
+      lastEnd = match.end;
+    }
+    
+    // 添加最后的文本
+    if (lastEnd < line.length) {
+      final text = line.substring(lastEnd);
+      if (text.isNotEmpty) {
+        parts.add(_buildTextSpan(text));
+      }
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: parts,
+      ),
+    );
+  }
+  
+  /// 构建LaTeX公式组件
+  Widget _buildLatexFormula(String latex) {
+    try {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Math.tex(
+          latex,
+          textStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+          ),
+          mathStyle: MathStyle.display,
+        ),
+      );
+    } catch (e) {
+      // LaTeX解析失败，显示原文
+      return _buildTextSpan('\$\$$latex\$\$');
+    }
+  }
+  
+  /// 构建普通文本行
+  Widget _buildTextLine(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: _buildTextSpan(text),
+    );
+  }
+  
+  /// 构建文本组件
+  Widget _buildTextSpan(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontFamily: 'serif',
+        height: 1.5,
+        shadows: [
+          Shadow(color: Colors.white24, blurRadius: 2),
+        ],
       ),
     );
   }
