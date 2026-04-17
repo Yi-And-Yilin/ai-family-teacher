@@ -297,116 +297,140 @@ class _ComponentChatLayoutState extends State<ComponentChatLayout> {
       return const SizedBox.shrink();
     }
 
-    final lastLlmMsg = messages.lastWhere(
-      (msg) => msg.role != MessageRole.user,
-      orElse: () => messages.last,
-    );
+    final allLines = <_SubtitleLineData>[];
+    for (int i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      final lines = msg.content.split('\n').where((l) => l.trim().isNotEmpty);
+      for (final line in lines) {
+        allLines.add(_SubtitleLineData(
+          text: line,
+          isUser: msg.role == MessageRole.user,
+        ));
+      }
+    }
 
-    final content = lastLlmMsg.content;
-    final lines =
-        content.split('\n').where((l) => l.trim().isNotEmpty).toList();
-    if (lines.isEmpty) {
+    if (allLines.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final reversedLines = lines.reversed.toList();
-
-    return Container(
-      height: 56,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          if (notification is ScrollUpdateNotification) {
-            setState(() {});
-          }
-          return false;
-        },
-        child: SingleChildScrollView(
-          controller: _subtitleScrollController,
-          physics: const BouncingScrollPhysics(),
-          child: _SubtitleLineView(
-            lines: reversedLines,
-            scrollController: _subtitleScrollController,
-          ),
-        ),
-      ),
+    return _FloatingSubtitleWidget(
+      lines: allLines,
+      scrollController: _subtitleScrollController,
     );
   }
 }
 
-class _SubtitleLineView extends StatelessWidget {
-  final List<String> lines;
+class _SubtitleLineData {
+  final String text;
+  final bool isUser;
+
+  const _SubtitleLineData({required this.text, required this.isUser});
+}
+
+class _FloatingSubtitleWidget extends StatefulWidget {
+  final List<_SubtitleLineData> lines;
   final ScrollController scrollController;
 
-  const _SubtitleLineView({
+  const _FloatingSubtitleWidget({
     required this.lines,
     required this.scrollController,
   });
 
   @override
+  State<_FloatingSubtitleWidget> createState() =>
+      _FloatingSubtitleWidgetState();
+}
+
+class _FloatingSubtitleWidgetState extends State<_FloatingSubtitleWidget> {
+  bool _isHovering = false;
+
+  @override
   Widget build(BuildContext context) {
     const itemHeight = 56.0;
-    final maxIndex = lines.length - 1;
+    final maxIndex = widget.lines.length - 1;
 
     int getLineIndex() {
       try {
-        if (!scrollController.hasClients ||
-            !scrollController.position.hasContentDimensions ||
-            scrollController.position.maxScrollExtent == 0) {
-          return 0;
+        if (!widget.scrollController.hasClients ||
+            !widget.scrollController.position.hasContentDimensions ||
+            widget.scrollController.position.maxScrollExtent == 0) {
+          return maxIndex;
         }
-        final scrollOffset = scrollController.offset;
+        final scrollOffset = widget.scrollController.offset;
         final index = (scrollOffset / itemHeight).round();
         return index.clamp(0, maxIndex);
       } catch (e) {
-        return 0;
+        return maxIndex;
       }
     }
 
-    return ListenableBuilder(
-      listenable: scrollController,
-      builder: (context, child) {
-        final currentIndex = getLineIndex();
-        final currentLine = lines[currentIndex];
-
-        return Container(
-          height: itemHeight,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.smart_toy,
-                size: 20,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  currentLine,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+    return Container(
+      height: 56,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-        );
-      },
+        ],
+      ),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollUpdateNotification ||
+                notification is ScrollEndNotification) {
+              setState(() {});
+            }
+            return false;
+          },
+          child: SingleChildScrollView(
+            controller: widget.scrollController,
+            physics: const BouncingScrollPhysics(),
+            child: ListenableBuilder(
+              listenable: widget.scrollController,
+              builder: (context, child) {
+                final currentIndex = getLineIndex();
+                final lineData = widget.lines[currentIndex];
+
+                return Container(
+                  height: 56,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        lineData.isUser ? Icons.person : Icons.smart_toy,
+                        size: 20,
+                        color: lineData.isUser
+                            ? Colors.blue[300]
+                            : Colors.purple[300],
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          lineData.text,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
