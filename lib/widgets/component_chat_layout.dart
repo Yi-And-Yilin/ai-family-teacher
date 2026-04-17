@@ -22,6 +22,7 @@ class _ComponentChatLayoutState extends State<ComponentChatLayout> {
   static const double _minComponentRatio = 0.1;
   static const double _maxComponentRatio = 0.9;
   static const double _subtitleThreshold = 0.85;
+  final ScrollController _subtitleScrollController = ScrollController();
 
   bool get _isSubtitleMode => _splitRatio >= _subtitleThreshold;
 
@@ -296,84 +297,116 @@ class _ComponentChatLayoutState extends State<ComponentChatLayout> {
       return const SizedBox.shrink();
     }
 
+    final lastLlmMsg = messages.lastWhere(
+      (msg) => msg.role != MessageRole.user,
+      orElse: () => messages.last,
+    );
+
+    final content = lastLlmMsg.content;
+    final lines =
+        content.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    if (lines.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final reversedLines = lines.reversed.toList();
+
     return Container(
-      constraints: const BoxConstraints(maxHeight: 120),
+      height: 56,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.95),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        color: Colors.black.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GestureDetector(
-            onTap: () {
-              setState(() => _splitRatio = 0.45);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.keyboard_arrow_down,
-                      color: Colors.grey[400], size: 20),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${(_splitRatio * 100).toInt()}%',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is ScrollUpdateNotification) {
+            setState(() {});
+          }
+          return false;
+        },
+        child: SingleChildScrollView(
+          controller: _subtitleScrollController,
+          physics: const BouncingScrollPhysics(),
+          child: _SubtitleLineView(
+            lines: reversedLines,
+            scrollController: _subtitleScrollController,
           ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final msg = messages[index];
-                final isUserMsg = msg.role == MessageRole.user;
-                final content = msg.content;
-                final lines = content.split('\n');
-                final lastLineText = lines.isNotEmpty ? lines.last : content;
+        ),
+      ),
+    );
+  }
+}
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        isUserMsg ? Icons.person : Icons.smart_toy,
-                        size: 14,
-                        color: isUserMsg ? Colors.blue : Colors.purple,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          lastLineText,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color:
-                                isUserMsg ? Colors.blue[700] : Colors.grey[800],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+class _SubtitleLineView extends StatelessWidget {
+  final List<String> lines;
+  final ScrollController scrollController;
+
+  const _SubtitleLineView({
+    required this.lines,
+    required this.scrollController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const itemHeight = 56.0;
+    final maxIndex = lines.length - 1;
+
+    int getLineIndex() {
+      try {
+        if (!scrollController.hasClients ||
+            !scrollController.position.hasContentDimensions ||
+            scrollController.position.maxScrollExtent == 0) {
+          return 0;
+        }
+        final scrollOffset = scrollController.offset;
+        final index = (scrollOffset / itemHeight).round();
+        return index.clamp(0, maxIndex);
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    return ListenableBuilder(
+      listenable: scrollController,
+      builder: (context, child) {
+        final currentIndex = getLineIndex();
+        final currentLine = lines[currentIndex];
+
+        return Container(
+          height: itemHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.smart_toy,
+                size: 20,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  currentLine,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
                   ),
-                );
-              },
-            ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -655,11 +688,17 @@ class _HamburgerMenuSheet extends StatelessWidget {
             title: '设置',
             isActive: false,
             onTap: () {
+              print('[DEBUG] 设置按钮点击 - 1. 开始执行onTap');
               Navigator.pop(context);
+              print('[DEBUG] 设置按钮点击 - 2. Navigator.pop完成');
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                MaterialPageRoute(builder: (context) {
+                  print('[DEBUG] 设置按钮点击 - 3. 进入SettingsScreen构建');
+                  return const SettingsScreen();
+                }),
               );
+              print('[DEBUG] 设置按钮点击 - 4. Navigator.push完成');
             },
           ),
           const SizedBox(height: 16),

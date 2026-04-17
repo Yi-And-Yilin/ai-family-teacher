@@ -692,7 +692,27 @@ class AIService {
                 final toolCalls = List.from(delta['tool_calls']);
                 for (final tc in toolCalls) {
                   if (tc['id'] != null) {
+                    if (toolCallId != null &&
+                        toolCallName != null &&
+                        toolCallArgs.isNotEmpty) {
+                      try {
+                        jsonDecode(toolCallArgs);
+                        pendingToolCalls ??= [];
+                        pendingToolCalls!.add({
+                          'id': toolCallId,
+                          'type': 'function',
+                          'function': {
+                            'name': toolCallName,
+                            'arguments': toolCallArgs,
+                          },
+                        });
+                      } catch (e) {
+                        yield '__ERROR__:工具参数解析失败: $e';
+                      }
+                    }
                     toolCallId = tc['id'];
+                    toolCallName = null;
+                    toolCallArgs = '';
                     pendingToolCalls ??= [];
                   }
                   if (tc['function']?['name'] != null) {
@@ -701,30 +721,32 @@ class AIService {
                   if (tc['function']?['arguments'] != null) {
                     toolCallArgs += tc['function']['arguments'];
                   }
+                }
+              }
 
-                  if (toolCallId != null &&
-                      toolCallName != null &&
-                      toolCallArgs.isNotEmpty) {
-                    try {
-                      jsonDecode(toolCallArgs);
-                      pendingToolCalls!.add({
-                        'id': toolCallId,
-                        'type': 'function',
-                        'function': {
-                          'name': toolCallName,
-                          'arguments': toolCallArgs,
-                        },
-                      });
-                      toolCallId = null;
-                      toolCallName = null;
-                      toolCallArgs = '';
-                    } catch (e) {
-                      toolCallId = null;
-                      toolCallName = null;
-                      toolCallArgs = '';
-                      yield '__ERROR__:工具参数解析失败: $e';
-                    }
-                  }
+              if (fr != null &&
+                  toolCallId != null &&
+                  toolCallName != null &&
+                  toolCallArgs.isNotEmpty) {
+                try {
+                  jsonDecode(toolCallArgs);
+                  pendingToolCalls ??= [];
+                  pendingToolCalls!.add({
+                    'id': toolCallId,
+                    'type': 'function',
+                    'function': {
+                      'name': toolCallName,
+                      'arguments': toolCallArgs,
+                    },
+                  });
+                  toolCallId = null;
+                  toolCallName = null;
+                  toolCallArgs = '';
+                } catch (e) {
+                  toolCallId = null;
+                  toolCallName = null;
+                  toolCallArgs = '';
+                  yield '__ERROR__:工具参数解析失败: $e';
                 }
               }
             }
@@ -916,7 +938,27 @@ class AIService {
                 final toolCalls = List.from(delta['tool_calls']);
                 for (final tc in toolCalls) {
                   if (tc['id'] != null) {
+                    if (toolCallId != null &&
+                        toolCallName != null &&
+                        toolCallArgs.isNotEmpty) {
+                      try {
+                        jsonDecode(toolCallArgs);
+                        pendingToolCalls ??= [];
+                        pendingToolCalls!.add({
+                          'id': toolCallId,
+                          'type': 'function',
+                          'function': {
+                            'name': toolCallName,
+                            'arguments': toolCallArgs,
+                          },
+                        });
+                      } catch (e) {
+                        yield '__ERROR__:工具参数解析失败: $e';
+                      }
+                    }
                     toolCallId = tc['id'];
+                    toolCallName = null;
+                    toolCallArgs = '';
                     pendingToolCalls ??= [];
                   }
                   if (tc['function']?['name'] != null) {
@@ -925,30 +967,32 @@ class AIService {
                   if (tc['function']?['arguments'] != null) {
                     toolCallArgs += tc['function']['arguments'];
                   }
+                }
+              }
 
-                  if (toolCallId != null &&
-                      toolCallName != null &&
-                      toolCallArgs.isNotEmpty) {
-                    try {
-                      jsonDecode(toolCallArgs);
-                      pendingToolCalls!.add({
-                        'id': toolCallId,
-                        'type': 'function',
-                        'function': {
-                          'name': toolCallName,
-                          'arguments': toolCallArgs,
-                        },
-                      });
-                      toolCallId = null;
-                      toolCallName = null;
-                      toolCallArgs = '';
-                    } catch (e) {
-                      toolCallId = null;
-                      toolCallName = null;
-                      toolCallArgs = '';
-                      yield '__ERROR__:工具参数解析失败: $e';
-                    }
-                  }
+              if (fr != null &&
+                  toolCallId != null &&
+                  toolCallName != null &&
+                  toolCallArgs.isNotEmpty) {
+                try {
+                  jsonDecode(toolCallArgs);
+                  pendingToolCalls ??= [];
+                  pendingToolCalls!.add({
+                    'id': toolCallId,
+                    'type': 'function',
+                    'function': {
+                      'name': toolCallName,
+                      'arguments': toolCallArgs,
+                    },
+                  });
+                  toolCallId = null;
+                  toolCallName = null;
+                  toolCallArgs = '';
+                } catch (e) {
+                  toolCallId = null;
+                  toolCallName = null;
+                  toolCallArgs = '';
+                  yield '__ERROR__:工具参数解析失败: $e';
                 }
               }
             }

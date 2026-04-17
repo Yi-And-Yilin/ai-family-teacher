@@ -14,6 +14,7 @@ import '../i18n/translations.dart';
 import '../models/conversation.dart';
 import '../services/voice_service.dart';
 import '../theme/ios_theme.dart';
+import '../screens/settings_screen.dart';
 
 class DialogArea extends StatefulWidget {
   final bool fullScreen;
@@ -2043,8 +2044,17 @@ class _HamburgerMenuSheet extends StatelessWidget {
             title: '设置',
             isActive: false,
             onTap: () {
+              print('[DEBUG] dialog_area设置按钮点击 - 1. 开始执行onTap');
               Navigator.pop(context);
-              // TODO: Navigate to settings
+              print('[DEBUG] dialog_area设置按钮点击 - 2. Navigator.pop完成');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) {
+                  print('[DEBUG] dialog_area设置按钮点击 - 3. 进入SettingsScreen构建');
+                  return const SettingsScreen();
+                }),
+              );
+              print('[DEBUG] dialog_area设置按钮点击 - 4. Navigator.push完成');
             },
           ),
 

@@ -421,7 +421,8 @@ class _ProfileMenuSheet extends StatelessWidget {
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
                       color: Colors.pink[100],
-                      child: Icon(Icons.face, size: 32, color: Colors.pink[300]),
+                      child:
+                          Icon(Icons.face, size: 32, color: Colors.pink[300]),
                     ),
                   ),
                 ),
@@ -471,11 +472,17 @@ class _ProfileMenuSheet extends StatelessWidget {
             icon: Icons.settings,
             title: Translations().t('nav_settings'),
             onTap: () {
+              print('[DEBUG] home_screen设置按钮点击 - 1. 开始执行onTap');
               Navigator.pop(context);
+              print('[DEBUG] home_screen设置按钮点击 - 2. Navigator.pop完成');
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                MaterialPageRoute(builder: (context) {
+                  print('[DEBUG] home_screen设置按钮点击 - 3. 进入SettingsScreen构建');
+                  return const SettingsScreen();
+                }),
               );
+              print('[DEBUG] home_screen设置按钮点击 - 4. Navigator.push完成');
             },
           ),
           _MenuItem(

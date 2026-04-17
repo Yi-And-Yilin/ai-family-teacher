@@ -19,9 +19,8 @@ class WorkbookWidget extends StatelessWidget {
       color: Colors.white,
       child: Container(
         margin: const EdgeInsets.all(16),
-        constraints: const BoxConstraints(minWidth: 300),
         decoration: BoxDecoration(
-          color: const Color(0xFFFAF9F6),
+          color: const Color(0xFFF0F7FF),
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
