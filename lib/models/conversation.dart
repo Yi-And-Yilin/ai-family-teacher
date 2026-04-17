@@ -52,6 +52,7 @@ class Message {
   final List<Map<String, dynamic>>? toolCalls; // AI 请求调用的工具
   final String? toolCallId; // 对应 tool 角色的 ID
   final List<String>? images; // 多模态: base64 图片列表
+  final List<Map<String, dynamic>>? toolCallEvents; // UI 显示的工具调用指标
   final DateTime timestamp;
 
   Message({
@@ -63,6 +64,7 @@ class Message {
     this.toolCalls,
     this.toolCallId,
     this.images,
+    this.toolCallEvents,
     required this.timestamp,
   });
 
@@ -76,6 +78,7 @@ class Message {
       'tool_calls': toolCalls != null ? jsonEncode(toolCalls) : null,
       'tool_call_id': toolCallId,
       'images': images != null ? jsonEncode(images) : null,
+      'tool_call_events': toolCallEvents != null ? jsonEncode(toolCallEvents) : null,
       'timestamp': timestamp.millisecondsSinceEpoch,
     };
   }
@@ -90,6 +93,7 @@ class Message {
       toolCalls: map['tool_calls'] != null ? List<Map<String, dynamic>>.from(jsonDecode(map['tool_calls'])) : null,
       toolCallId: map['tool_call_id'],
       images: map['images'] != null ? List<String>.from(jsonDecode(map['images'])) : null,
+      toolCallEvents: map['tool_call_events'] != null ? List<Map<String, dynamic>>.from(jsonDecode(map['tool_call_events'])) : null,
       timestamp: DateTime.fromMillisecondsSinceEpoch(map['timestamp']),
     );
   }

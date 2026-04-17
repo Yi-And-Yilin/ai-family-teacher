@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
+import '../i18n/translations.dart';
 import '../widgets/component_controller.dart';
-import '../widgets/dialog_area.dart';
+import '../theme/ios_theme.dart';
 import 'settings_screen.dart';
 import 'api_test_screen.dart';
 
@@ -15,169 +16,33 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _menuOpen = false;
-
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          // 主内容
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: appProvider.currentComponent == ComponentType.landing ||
-                        appProvider.currentComponent == ComponentType.dialog
-                    ? [
-                        const Color(0xFFE8F5E9),
-                        const Color(0xFFFCE4EC),
-                        const Color(0xFFF3E5F5),
-                      ]
-                    : [
-                        Colors.white,
-                        const Color(0xFFF5F5F5),
-                      ],
-              ),
-            ),
-            child: SafeArea(
-              child: appProvider.currentComponent == ComponentType.landing
-                  ? _buildLandingPage(appProvider)
-                  : appProvider.currentComponent == ComponentType.dialog
-                      ? const DialogArea(fullScreen: true)
-                      : _buildActiveView(appProvider),
-            ),
-          ),
-          
-          // 左上角菜单按钮
-          Positioned(
-            top: 16,
-            left: 16,
-            child: _buildMenuButton(appProvider),
-          ),
-          
-          // 隐藏式导航菜单
-          if (_menuOpen) _buildNavOverlay(appProvider),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuButton(AppProvider appProvider) {
-    return GestureDetector(
-      onTap: () => setState(() => _menuOpen = !_menuOpen),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 48,
-        height: 48,
+      body: Container(
         decoration: BoxDecoration(
-          color: _menuOpen ? const Color(0xFF7C4DFF) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(
-          _menuOpen ? Icons.close : Icons.menu_rounded,
-          color: _menuOpen ? Colors.white : const Color(0xFF7C4DFF),
-          size: 24,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavOverlay(AppProvider appProvider) {
-    return GestureDetector(
-      onTap: () => setState(() => _menuOpen = false),
-      child: Container(
-        color: Colors.black.withOpacity(0.3),
-        child: SafeArea(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Container(
-              margin: const EdgeInsets.only(top: 72, left: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _NavItem(
-                    icon: Icons.home_rounded,
-                    label: '首页',
-                    isActive: appProvider.currentComponent == ComponentType.landing,
-                    onTap: () {
-                      appProvider.switchTo(ComponentType.landing);
-                      setState(() => _menuOpen = false);
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.chat_bubble_rounded,
-                    label: '对话',
-                    isActive: appProvider.currentComponent == ComponentType.dialog,
-                    onTap: () {
-                      appProvider.switchTo(ComponentType.dialog);
-                      setState(() => _menuOpen = false);
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.dashboard_rounded,
-                    label: '黑板',
-                    isActive: appProvider.currentComponent == ComponentType.blackboard,
-                    onTap: () {
-                      appProvider.switchTo(ComponentType.blackboard);
-                      setState(() => _menuOpen = false);
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.edit_note_rounded,
-                    label: '作业本',
-                    isActive: appProvider.currentComponent == ComponentType.workbook,
-                    onTap: () {
-                      appProvider.switchTo(ComponentType.workbook);
-                      setState(() => _menuOpen = false);
-                    },
-                  ),
-                  _NavItem(
-                    icon: Icons.book_rounded,
-                    label: '笔记本',
-                    isActive: appProvider.currentComponent == ComponentType.notebook,
-                    onTap: () {
-                      appProvider.switchTo(ComponentType.notebook);
-                      setState(() => _menuOpen = false);
-                    },
-                  ),
-                  const Divider(height: 16),
-                  _NavItem(
-                    icon: Icons.person_rounded,
-                    label: '个人设置',
-                    isActive: false,
-                    onTap: () {
-                      setState(() => _menuOpen = false);
-                      _showProfileMenu(appProvider);
-                    },
-                  ),
-                ],
-              ),
-            ),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: appProvider.currentComponent == ComponentType.landing
+                ? [
+                    const Color(0xFFE8F5E9),
+                    const Color(0xFFFCE4EC),
+                    const Color(0xFFF3E5F5),
+                  ]
+                : [
+                    iOSTheme.white,
+                    iOSTheme.white,
+                  ],
           ),
+        ),
+        child: SafeArea(
+          child: appProvider.currentComponent == ComponentType.landing
+              ? _buildLandingPage(appProvider)
+              : _buildActiveView(appProvider),
         ),
       ),
     );
@@ -206,13 +71,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final hour = DateTime.now().hour;
     String greeting;
     if (hour < 12) {
-      greeting = '早上好';
+      greeting = Translations().t('landing_morning');
     } else if (hour < 18) {
-      greeting = '下午好';
+      greeting = Translations().t('landing_afternoon');
     } else {
-      greeting = '晚上好';
+      greeting = Translations().t('landing_evening');
     }
-    
+
     return Row(
       children: [
         Expanded(
@@ -229,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '准备好开始今天的学习了吗？',
+                Translations().t('landing_ready'),
                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
             ],
@@ -248,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '快速开始',
+          Translations().t('landing_quick_start'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -266,31 +131,31 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _QuickActionCard(
               icon: Icons.chat_bubble_rounded,
-              title: '对话',
-              subtitle: '提问答疑',
+              title: Translations().t('landing_chat'),
+              subtitle: Translations().t('landing_chat_subtitle'),
               gradient: [const Color(0xFF42A5F5), const Color(0xFF1976D2)],
-              onTap: () => appProvider.switchTo(ComponentType.dialog),
+              onTap: () => appProvider.switchTo(ComponentType.chat),
             ),
             _QuickActionCard(
               icon: Icons.edit_note_rounded,
-              title: '作业本',
-              subtitle: '练习题目',
+              title: '已保存作业本',
+              subtitle: '查看历史作业本记录',
               gradient: [const Color(0xFF66BB6A), const Color(0xFF388E3C)],
-              onTap: () => appProvider.switchTo(ComponentType.workbook),
+              onTap: () => appProvider.switchTo(ComponentType.savedWorkbooks),
             ),
             _QuickActionCard(
               icon: Icons.book_rounded,
-              title: '笔记本',
-              subtitle: '记录学习',
+              title: '已保存笔记本',
+              subtitle: '查看历史笔记记录',
               gradient: [const Color(0xFFFFA726), const Color(0xFFF57C00)],
-              onTap: () => appProvider.switchTo(ComponentType.notebook),
+              onTap: () => appProvider.switchTo(ComponentType.savedNotebooks),
             ),
             _QuickActionCard(
               icon: Icons.dashboard_rounded,
-              title: '黑板',
-              subtitle: '查看讲解',
+              title: '已保存黑板',
+              subtitle: '查看历史黑板记录',
               gradient: [const Color(0xFFAB47BC), const Color(0xFF7B1FA2)],
-              onTap: () => appProvider.switchTo(ComponentType.blackboard),
+              onTap: () => appProvider.switchTo(ComponentType.savedBlackboards),
             ),
           ],
         ),
@@ -310,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '今日学习',
+            Translations().t('home_today_learning'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -322,21 +187,21 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _StatItem(
                 icon: Icons.help_outline,
-                label: '提问',
+                label: Translations().t('home_ask_questions'),
                 value: '${appProvider.todayQuestions}次',
                 color: Colors.blue,
               ),
               const SizedBox(width: 20),
               _StatItem(
                 icon: Icons.timer_outlined,
-                label: '学习',
+                label: Translations().t('home_study'),
                 value: '0分钟',
                 color: Colors.green,
               ),
               const SizedBox(width: 20),
               _StatItem(
                 icon: Icons.star_outline,
-                label: '积分',
+                label: Translations().t('home_points'),
                 value: '0',
                 color: Colors.orange,
               ),
@@ -348,66 +213,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActiveView(AppProvider appProvider) {
-    // 如果是黑板+聊天模式，使用特殊布局
-    if (appProvider.currentComponent == ComponentType.blackboardChat) {
-      return Column(
-        children: [
-          _buildSwitcherBar(appProvider),
-          Expanded(
-            child: ComponentController(
-              currentComponent: appProvider.currentComponent,
-            ),
-          ),
-        ],
-      );
-    }
-    
-    return Column(
-      children: [
-        _buildSwitcherBar(appProvider),
-        Expanded(
-          child: ComponentController(
-            currentComponent: appProvider.currentComponent,
-          ),
-        ),
-        const DialogArea(),
-      ],
-    );
-  }
-
-  Widget _buildSwitcherBar(AppProvider appProvider) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(70, 8, 16, 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _SwitcherBtn(
-            icon: Icons.dashboard_rounded,
-            label: '黑板',
-            isActive: appProvider.currentComponent == ComponentType.blackboard,
-            onTap: () => appProvider.switchTo(ComponentType.blackboard),
-          ),
-          _SwitcherBtn(
-            icon: Icons.edit_note_rounded,
-            label: '作业本',
-            isActive: appProvider.currentComponent == ComponentType.workbook,
-            onTap: () => appProvider.switchTo(ComponentType.workbook),
-          ),
-          _SwitcherBtn(
-            icon: Icons.book_rounded,
-            label: '笔记本',
-            isActive: appProvider.currentComponent == ComponentType.notebook,
-            onTap: () => appProvider.switchTo(ComponentType.notebook),
-          ),
-          _SwitcherBtn(
-            icon: Icons.chat_bubble_rounded,
-            label: '对话',
-            isActive: appProvider.currentComponent == ComponentType.dialog,
-            onTap: () => appProvider.switchTo(ComponentType.dialog),
-          ),
-        ],
-      ),
+    // 直接显示 ComponentController，不再需要 Switcher Bar
+    return ComponentController(
+      currentComponent: appProvider.currentComponent,
     );
   }
 
@@ -444,48 +252,6 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => _ProfileMenuSheet(appProvider: appProvider),
-    );
-  }
-}
-
-// --- 辅助组件 ---
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF7C4DFF) : const Color(0xFFF3E5F5),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          color: isActive ? Colors.white : const Color(0xFF7C4DFF),
-          size: 20,
-        ),
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
     );
   }
 }
@@ -608,55 +374,6 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-class _SwitcherBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _SwitcherBtn({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? const Color(0xFF7C4DFF).withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isActive ? const Color(0xFF7C4DFF) : Colors.grey,
-              size: 22,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: isActive ? const Color(0xFF7C4DFF) : Colors.grey,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ProfileMenuSheet extends StatelessWidget {
   final AppProvider appProvider;
 
@@ -736,7 +453,7 @@ class _ProfileMenuSheet extends StatelessWidget {
           const SizedBox(height: 20),
           _MenuItem(
             icon: Icons.edit,
-            title: '修改昵称',
+            title: Translations().t('home_change_nickname'),
             onTap: () {
               Navigator.pop(context);
               _showNameDialog(context);
@@ -744,15 +461,15 @@ class _ProfileMenuSheet extends StatelessWidget {
           ),
           _MenuItem(
             icon: Icons.bar_chart,
-            title: '学习统计',
+            title: Translations().t('profile_statistics'),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon(context, '学习统计');
+              _showComingSoon(context, Translations().t('profile_statistics'));
             },
           ),
           _MenuItem(
             icon: Icons.settings,
-            title: '设置',
+            title: Translations().t('nav_settings'),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -763,7 +480,7 @@ class _ProfileMenuSheet extends StatelessWidget {
           ),
           _MenuItem(
             icon: Icons.science,
-            title: 'API 测试',
+            title: Translations().t('home_api_test'),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -774,10 +491,10 @@ class _ProfileMenuSheet extends StatelessWidget {
           ),
           _MenuItem(
             icon: Icons.help,
-            title: '帮助',
+            title: Translations().t('profile_help'),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon(context, '帮助');
+              _showComingSoon(context, Translations().t('profile_help'));
             },
           ),
           const SizedBox(height: 20),
@@ -792,11 +509,11 @@ class _ProfileMenuSheet extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('修改昵称'),
+        title: Text(Translations().t('home_change_nickname')),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
-            hintText: '请输入新昵称',
+            hintText: Translations().t('home_nickname_hint'),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -810,7 +527,7 @@ class _ProfileMenuSheet extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(Translations().t('dialog_cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -825,7 +542,7 @@ class _ProfileMenuSheet extends StatelessWidget {
                 Navigator.pop(context);
               }
             },
-            child: const Text('保存'),
+            child: Text(Translations().t('common_save')),
           ),
         ],
       ),
@@ -838,11 +555,11 @@ class _ProfileMenuSheet extends StatelessWidget {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(feature),
-        content: const Text('功能开发中，敬请期待！'),
+        content: Text(Translations().t('home_features_coming')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('知道了'),
+            child: Text(Translations().t('home_got_it')),
           ),
         ],
       ),

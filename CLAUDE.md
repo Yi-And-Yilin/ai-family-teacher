@@ -117,3 +117,42 @@ netsh advfirewall firewall show rule name=all | findstr 11434
 - **技术栈**：Flutter 3.41.5 + Provider + SQLite + Ollama
 - **AI 模型**：qwen3.5:9b (文本) + qwen3-vl:8b (视觉)
 - **目标用户**：中小学生及其家长
+
+---
+
+## 组件架构
+
+### 布局结构
+
+当 AI 调用 workbook/blackboard/notebook 工具时，聊天页面采用**上下分栏布局**：
+
+```
+┌──────────────────────────────────┐
+│  顶部组件区域 (45% 默认)          │
+│  - WorkbookWidget (作业本样式)    │
+│  - BlackboardWidget (黑板样式)    │
+│  - NotebookWidget (笔记本样式)    │
+├────────── 可拖动分割线 ──────────┤
+│  底部聊天区域 (55%)              │
+└──────────────────────────────────┘
+```
+
+### 关键文件
+
+| 文件 | 用途 |
+|------|------|
+| `lib/widgets/component_chat_layout.dart` | 分栏布局控制器（含拖动、subtitle 模式） |
+| `lib/widgets/component_controller.dart` | 路由到 DialogArea + ComponentChatLayout |
+| `lib/widgets/dialog_area.dart` | 主聊天组件 |
+| `lib/widgets/workbook.dart` | 作业本组件 |
+| `lib/widgets/blackboard.dart` | 黑板组件 |
+| `lib/widgets/notebook.dart` | 笔记本组件 |
+
+### 状态管理
+
+- `appProvider.activeComponentType` - 当前活跃的组件类型
+- `appProvider.streamingWorkbookContent` - 作业本流式内容
+- `appProvider.streamingBlackboardContent` - 黑板流式内容
+- `appProvider.streamingNotebookContent` - 笔记本流式内容
+
+详细说明参见 `docs/UI_COMPONENTS.md`

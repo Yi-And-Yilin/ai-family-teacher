@@ -4,10 +4,15 @@
 
 ## ✨ 核心功能 (Core Features)
 
-*   **沉浸式学习组件**:
-    *   **复古黑板**: 模拟真实粉笔质感的书写和擦除，支持 AI 自动画图、写公式。
-    *   **护眼作业本**: 米黄色横线本设计，AI 可在上面用“红笔”进行批改、打分。
-    *   **螺旋笔记本**: 方格纸背景，适合自由记录笔记和画图。
+*   **Chat-Centric 学习界面** (2026-04 重构):
+    *   **统一聊天界面**: 所有内容（黑板、作业本、笔记本）都在聊天中内联显示，无需切换标签页
+    *   **已保存列表**: 浏览历史内容（黑板、作业本、笔记本），点击即可跳转到原始聊天上下文
+    *   **无自动切换**: AI 响应保留在聊天界面，用户始终保持上下文
+
+*   **沉浸式学习组件** (内联显示):
+    *   **复古黑板**: 模拟真实粉笔质感的书写和擦除，支持 AI 自动画图、写公式（通过 `B>` 前缀在聊天中显示）
+    *   **护眼作业本**: 米黄色横线本设计，AI 可在上面用"红笔"进行批改、打分（通过工具调用在聊天中创建）
+    *   **螺旋笔记本**: 方格纸背景，适合自由记录笔记和画图（通过 `N>` 前缀在聊天中显示）
 
 *   **多模态交互 (Multi-modal)**:
     *   **文字对话**: 基础的文本输入。
@@ -55,4 +60,26 @@
     *应用会在 Chrome 浏览器中启动。由于使用了语音服务，请确保已授予浏览器麦克风权限。*
 
 ---
-*这个 README.md 旨在提供一个清晰的项目概览，方便任何新加入的开发者快速上手。*
+
+## 📚 开发者文档
+
+如果你是贡献者或需要深入了解项目架构，请查阅以下文档：
+
+| 文档 | 用途 | 适合人群 |
+|------|------|----------|
+| [GENERAL.md](docs/GENERAL.md) | 整体架构概览、技术决策 | 新加入的开发者 |
+| [UI_COMPONENTS.md](docs/UI_COMPONENTS.md) | UI 组件设计、聊天中心架构 | 前端开发者 |
+| [STREAMING_PROTOCOL.md](docs/STREAMING_PROTOCOL.md) | LLM 流式通信协议 | 后端/AI 开发者 |
+| [TOOL_CALL_SYSTEM.md](docs/TOOL_CALL_SYSTEM.md) | 工具调用系统、Function Calling | AI 工作流开发者 |
+| [DATA_MODELS.md](docs/DATA_MODELS.md) | 数据模型、数据库结构 | 全栈开发者 |
+| [LOGGING_AND_DEBUGGING.md](docs/LOGGING_AND_DEBUGGING.md) | 调试指南、常见问题排查 | 所有开发者 |
+| [UI_REFACTORING_MIGRATION_GUIDE.md](docs/UI_REFACTORING_MIGRATION_GUIDE.md) | 2026-04 UI 重构迁移指南 | 维护代码的开发者 |
+| [BUG_FIXES_HISTORY.md](docs/BUG_FIXES_HISTORY.md) | 历史 Bug 修复记录 | 维护者 |
+
+**快速开始路径：**
+1. 先读 [GENERAL.md](docs/GENERAL.md) 了解架构
+2. 再读 [UI_COMPONENTS.md](docs/UI_COMPONENTS.md) 理解界面
+3. 如果需要修改代码，查阅 [UI_REFACTORING_MIGRATION_GUIDE.md](docs/UI_REFACTORING_MIGRATION_GUIDE.md)
+
+---
+*这个 README.md 旨在提供一个清晰的项目概览，方便任何新加入的开发者快速上手。详细技术文档请查阅 `docs/` 目录。*

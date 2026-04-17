@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
@@ -175,11 +176,18 @@ class _BlackboardChatViewState extends State<BlackboardChatView> {
   }
 
   Widget _buildExplanationList(List<Message> messages, AppProvider appProvider) {
+    print('[CHAT_VIEW] 🔨 构建消息列表 - 总消息数: ${messages.length}');
     // 只显示最近的几条消息
-    final recentMessages = messages.length > 5 
-        ? messages.sublist(messages.length - 5) 
+    final recentMessages = messages.length > 5
+        ? messages.sublist(messages.length - 5)
         : messages;
-    
+
+    print('[CHAT_VIEW] 📋 显示最近 ${recentMessages.length} 条消息');
+    for (int i = 0; i < recentMessages.length; i++) {
+      final msg = recentMessages[i];
+      print('  [$i] role=${msg.role}, toolCallEvents=${msg.toolCallEvents?.length ?? 0}');
+    }
+
     return ListView.builder(
       controller: _chatScrollController,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -224,6 +232,7 @@ class _BlackboardChatViewState extends State<BlackboardChatView> {
   }
 
   Widget _buildAIBubble(Message message) {
+    print('[CHAT_VIEW] 🛠️ 构建AI气泡 - toolCallEvents: ${message.toolCallEvents?.length ?? 0}');
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -252,16 +261,30 @@ class _BlackboardChatViewState extends State<BlackboardChatView> {
                 color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: MarkdownBody(
-                data: message.content,
-                styleSheet: MarkdownStyleSheet(
-                  p: const TextStyle(fontSize: 13, height: 1.4),
-                  code: TextStyle(
-                    fontFamily: 'monospace',
-                    backgroundColor: Colors.grey[200],
-                    fontSize: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 工具调用指标（可折叠）
+                  if (message.toolCallEvents != null && message.toolCallEvents!.isNotEmpty)
+                    ...message.toolCallEvents!
+                        .map((event) {
+                          print('[CHAT_VIEW] 🎨 渲染工具指标: ${event['tool_name']} (${event['state']})');
+                          return _buildToolCallIndicator(event);
+                        })
+                        .toList(),
+                  // AI 回答内容
+                  MarkdownBody(
+                    data: message.content,
+                    styleSheet: MarkdownStyleSheet(
+                      p: const TextStyle(fontSize: 13, height: 1.4),
+                      code: TextStyle(
+                        fontFamily: 'monospace',
+                        backgroundColor: Colors.grey[200],
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
@@ -279,12 +302,12 @@ class _BlackboardChatViewState extends State<BlackboardChatView> {
       ),
       child: Row(
         children: [
-          // 隐藏黑板的按钮
-          IconButton(
-            icon: Icon(Icons.close_fullscreen, color: Colors.grey[400], size: 20),
-            onPressed: () => appProvider.setBlackboardWithChatMode(false),
-            tooltip: '关闭黑板',
-          ),
+          // 隐藏黑板的按钮（已废弃，保持在聊天中）
+          // IconButton(
+          //   icon: Icon(Icons.close_fullscreen, color: Colors.grey[400], size: 20),
+          //   onPressed: () => appProvider.setBlackboardInlineMode(false),
+          //   tooltip: '关闭黑板',
+          // ),
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -339,5 +362,137 @@ class _BlackboardChatViewState extends State<BlackboardChatView> {
     _captionController.clear();
     // TODO: 发送消息到AI服务
     // 这里需要调用AI服务进行对话
+  }
+
+  /// 构建可折叠的工具调用指标
+  Widget _buildToolCallIndicator(Map<String, dynamic> event) {
+    final toolName = event['tool_name'] as String? ?? '';
+    final state = event['state'] as String? ?? '';
+    final progressText = event['progress_text'] as String? ?? '';
+    final arguments = event['arguments'] as Map<String, dynamic>?;
+    final result = event['result'] as Map<String, dynamic>?;
+    final isDone = state == 'done';
+    
+    print('[CHAT_VIEW] 🎨 构建工具指标Widget:');
+    print('  - toolName: $toolName');
+    print('  - state: $state (isDone: $isDone)');
+    print('  - progressText: $progressText');
+    print('  - hasArguments: ${arguments != null}');
+    print('  - hasResult: ${result != null}');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: isDone ? Colors.green.withOpacity(0.08) : Colors.blue.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDone ? Colors.green.withOpacity(0.3) : Colors.blue.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          expansionTileTheme: const ExpansionTileThemeData(
+            collapsedIconColor: Colors.grey,
+            iconColor: Colors.grey,
+          ),
+        ),
+        child: ExpansionTile(
+          leading: Text(
+            isDone ? '✅' : '🔄',
+            style: const TextStyle(fontSize: 16),
+          ),
+          title: Text(
+            progressText,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDone ? Colors.green[700] : Colors.blue[700],
+            ),
+          ),
+          trailing: Icon(
+            Icons.expand_more,
+            size: 18,
+            color: Colors.grey[400],
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (arguments != null && arguments.isNotEmpty) ...[
+                    Text(
+                      '📋 参数:',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _formatJson(arguments),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontFamily: 'monospace',
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  if (result != null && result.isNotEmpty) ...[
+                    Text(
+                      '📤 结果:',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _formatJson(result),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontFamily: 'monospace',
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 格式化 JSON 为可读字符串
+  String _formatJson(Map<String, dynamic> json) {
+    try {
+      const encoder = JsonEncoder.withIndent('  ');
+      return encoder.convert(json);
+    } catch (e) {
+      return json.toString();
+    }
   }
 }

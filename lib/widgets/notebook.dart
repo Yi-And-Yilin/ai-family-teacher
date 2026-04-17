@@ -9,7 +9,10 @@ class NotebookWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    
+    print('[E2E-DEBUG] ✅ NotebookWidget.build() called');
+    print(
+        '[E2E-DEBUG] streamingNotebookContent length: ${appProvider.streamingNotebookContent.length}');
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
       color: const Color(0xFFF0F0F0), // 灰白色桌面
@@ -26,15 +29,19 @@ class NotebookWidget extends StatelessWidget {
                 final ringHeight = 8.0;
                 final ringSpacing = 6.0;
                 final availableHeight = constraints.maxHeight;
-                final ringCount = ((availableHeight + ringSpacing) / (ringHeight + ringSpacing)).floor().clamp(1, 20);
+                final ringCount = ((availableHeight + ringSpacing) /
+                        (ringHeight + ringSpacing))
+                    .floor()
+                    .clamp(1, 20);
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(ringCount, (index) => _buildBindingRing()),
+                  children:
+                      List.generate(ringCount, (index) => _buildBindingRing()),
                 );
               },
             ),
           ),
-          
+
           // 笔记本主体
           Container(
             decoration: BoxDecoration(
@@ -42,17 +49,25 @@ class NotebookWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
               border: Border.all(color: Colors.grey[300]!),
               boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(4, 4)),
+                BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: const Offset(4, 4)),
                 // 模拟多张纸堆叠的边沿
-                const BoxShadow(color: Colors.white, blurRadius: 0, offset: Offset(2, 2)),
-                BoxShadow(color: Colors.grey[300]!, blurRadius: 0, offset: const Offset(3, 3)),
+                const BoxShadow(
+                    color: Colors.white, blurRadius: 0, offset: Offset(2, 2)),
+                BoxShadow(
+                    color: Colors.grey[300]!,
+                    blurRadius: 0,
+                    offset: const Offset(3, 3)),
               ],
             ),
             child: Stack(
               children: [
                 // 方格背景纹理
-                Positioned.fill(child: CustomPaint(painter: _NotebookGridPainter())),
-                
+                Positioned.fill(
+                    child: CustomPaint(painter: _NotebookGridPainter())),
+
                 // 笔记内容输入区
                 Padding(
                   padding: const EdgeInsets.all(30),
@@ -61,9 +76,13 @@ class NotebookWidget extends StatelessWidget {
                     children: [
                       const Text(
                         '💡 我的笔记',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueGrey),
                       ),
-                      const Divider(height: 30, thickness: 2, color: Colors.black12),
+                      const Divider(
+                          height: 30, thickness: 2, color: Colors.black12),
                       Expanded(
                         child: TextField(
                           maxLines: null,
@@ -72,8 +91,9 @@ class NotebookWidget extends StatelessWidget {
                             hintText: '开始记录学习笔记...',
                             border: InputBorder.none,
                           ),
-                          style: const TextStyle(fontSize: 16, height: 1.5),
-                          onChanged: (content) => appProvider.updateNoteContent(content),
+                          style: const TextStyle(fontSize: 14, height: 1.5),
+                          onChanged: (content) =>
+                              appProvider.updateNoteContent(content),
                         ),
                       ),
                     ],

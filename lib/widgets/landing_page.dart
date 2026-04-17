@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../i18n/translations.dart';
 import '../providers/app_provider.dart';
 
 class LandingPage extends StatelessWidget {
@@ -55,11 +56,11 @@ class LandingPage extends StatelessWidget {
     final hour = DateTime.now().hour;
     String greeting;
     if (hour < 12) {
-      greeting = '早上好';
+      greeting = Translations().t('landing_morning');
     } else if (hour < 18) {
-      greeting = '下午好';
+      greeting = Translations().t('landing_afternoon');
     } else {
-      greeting = '晚上好';
+      greeting = Translations().t('landing_evening');
     }
     
     return Row(
@@ -79,7 +80,7 @@ class LandingPage extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '准备好开始今天的学习了吗？',
+                Translations().t('landing_ready'),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -142,7 +143,7 @@ class LandingPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '快速开始',
+          Translations().t('landing_quick_start'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -160,31 +161,31 @@ class LandingPage extends StatelessWidget {
           children: [
             _QuickActionCard(
               icon: Icons.chat_bubble_rounded,
-              title: '对话',
+              title: Translations().t('landing_chat'),
               subtitle: '提问答疑',
               gradient: [const Color(0xFF42A5F5), const Color(0xFF1976D2)],
-              onTap: () => appProvider.switchTo(ComponentType.dialog),
+              onTap: () => appProvider.switchTo(ComponentType.chat),
             ),
             _QuickActionCard(
               icon: Icons.edit_note_rounded,
-              title: '作业本',
-              subtitle: '练习题目',
+              title: '已保存作业本',
+              subtitle: '查看历史作业本记录',
               gradient: [const Color(0xFF66BB6A), const Color(0xFF388E3C)],
-              onTap: () => appProvider.switchTo(ComponentType.workbook),
+              onTap: () => appProvider.switchTo(ComponentType.savedWorkbooks),
             ),
             _QuickActionCard(
               icon: Icons.book_rounded,
-              title: '笔记本',
-              subtitle: '记录学习',
+              title: '已保存笔记本',
+              subtitle: '查看历史笔记记录',
               gradient: [const Color(0xFFFFA726), const Color(0xFFF57C00)],
-              onTap: () => appProvider.switchTo(ComponentType.notebook),
+              onTap: () => appProvider.switchTo(ComponentType.savedNotebooks),
             ),
             _QuickActionCard(
               icon: Icons.dashboard_rounded,
-              title: '黑板',
-              subtitle: '查看讲解',
+              title: '已保存黑板',
+              subtitle: '查看历史黑板记录',
               gradient: [const Color(0xFFAB47BC), const Color(0xFF7B1FA2)],
-              onTap: () => appProvider.switchTo(ComponentType.blackboard),
+              onTap: () => appProvider.switchTo(ComponentType.savedBlackboards),
             ),
           ],
         ),

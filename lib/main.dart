@@ -7,28 +7,34 @@ import 'dart:io';
 import 'screens/home_screen.dart';
 import 'providers/app_provider.dart';
 import 'services/ai_service.dart';
+import 'i18n/translations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // 初始化日志系统
   await AILogger.init();
   AILogger.log('APP', '应用启动');
-  
+
   // 初始化 sqflite_ffi (Windows/Linux desktop support)
   if (Platform.isWindows || Platform.isLinux) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
-  
+
   // 初始化数据库
   final appProvider = AppProvider();
   await appProvider.initDatabase();
-  
+  await appProvider.loadLanguage(); // 加载语言设置
+
+  // 初始化翻译系统
+  await Translations().init(defaultLanguage: appProvider.language);
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: appProvider),
+        ChangeNotifierProvider.value(value: Translations()),
       ],
       child: const MyApp(),
     ),

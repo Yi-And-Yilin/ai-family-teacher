@@ -26,24 +26,24 @@ class ComponentSwitcher extends StatelessWidget {
             label: '首页',
           ),
           _buildSwitchButton(
-            type: ComponentType.blackboard,
-            icon: Icons.school,
-            label: '黑板',
-          ),
-          _buildSwitchButton(
-            type: ComponentType.workbook,
-            icon: Icons.edit_note,
-            label: '作业本',
-          ),
-          _buildSwitchButton(
-            type: ComponentType.notebook,
-            icon: Icons.note,
-            label: '笔记本',
-          ),
-          _buildSwitchButton(
-            type: ComponentType.dialog,
-            icon: Icons.chat,
+            type: ComponentType.chat,
+            icon: Icons.chat_bubble_rounded,
             label: '对话',
+          ),
+          _buildSwitchButton(
+            type: ComponentType.savedBlackboards,
+            icon: Icons.dashboard_rounded,
+            label: '已保存黑板',
+          ),
+          _buildSwitchButton(
+            type: ComponentType.savedWorkbooks,
+            icon: Icons.edit_note_rounded,
+            label: '已保存作业本',
+          ),
+          _buildSwitchButton(
+            type: ComponentType.savedNotebooks,
+            icon: Icons.book_rounded,
+            label: '已保存笔记本',
           ),
         ],
       ),

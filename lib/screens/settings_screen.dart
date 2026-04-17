@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../services/api_config.dart';
+import '../i18n/translations.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _glmApiKeyController = TextEditingController();
+  final _deepseekApiKeyController = TextEditingController();
   final _ollamaUrlController = TextEditingController();
   bool _obscureApiKey = true;
   bool _showImportSuccess = false;
@@ -25,15 +27,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final config = context.read<AppProvider>().apiConfig;
       _glmApiKeyController.text = config.glmApiKey;
+      _deepseekApiKeyController.text = config.deepseekApiKey;
       _ollamaUrlController.text = config.ollamaUrl;
-      
-      // 检查是否刚导入 API Key
+
+      // Check if API key was just imported
       if (config.keyJustImported) {
         setState(() => _showImportSuccess = true);
         config.clearKeyImportedFlag();
       }
-      
-      // 检查是否刚保存到源代码
+
+      // Check if key was just saved to source code
       if (config.keySavedToSource) {
         setState(() => _showSaveToSourceSuccess = true);
         config.clearKeySavedToSourceFlag();
@@ -44,6 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _glmApiKeyController.dispose();
+    _deepseekApiKeyController.dispose();
     _ollamaUrlController.dispose();
     super.dispose();
   }
@@ -59,9 +63,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF7C4DFF)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'API 设置',
-          style: TextStyle(
+        title: Text(
+          Translations().t('settings_api_title'),
+          style: const TextStyle(
             color: Color(0xFF1A237E),
             fontWeight: FontWeight.bold,
           ),
@@ -70,42 +74,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Consumer<AppProvider>(
         builder: (context, appProvider, child) {
           final config = appProvider.apiConfig;
-          
+          final t = Translations();
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 导入成功提示
+                // Import success banner
                 if (_showImportSuccess) _buildImportSuccessBanner(),
-                
-                // 保存到源代码成功提示
+
+                // Save to source success banner
                 if (_showSaveToSourceSuccess) _buildSaveToSourceSuccessBanner(),
-                
-                // 当前状态卡片
+
+                // Status card
                 _buildStatusCard(config),
                 const SizedBox(height: 24),
-                
-                // API 提供商选择
-                _buildSectionTitle('API 提供商'),
+
+                // Language setting
+                _buildSectionTitle(t.t('settings_section_language')),
+                const SizedBox(height: 12),
+                _buildLanguageSelector(),
+                const SizedBox(height: 24),
+
+                // API provider selection
+                _buildSectionTitle(t.t('settings_section_provider')),
                 const SizedBox(height: 12),
                 _buildProviderSelector(config),
                 const SizedBox(height: 24),
-                
-                // 根据选择显示不同配置
+
+                // Show config based on selection
                 if (config.isGLM) ...[
-                  _buildSectionTitle('GLM API 配置'),
+                  _buildSectionTitle(t.t('settings_section_glm_config')),
                   const SizedBox(height: 12),
                   _buildGLMConfig(config),
+                ] else if (config.isDeepSeek) ...[
+                  _buildSectionTitle(t.t('settings_section_deepseek_config')),
+                  const SizedBox(height: 12),
+                  _buildDeepseekConfig(config),
                 ] else ...[
-                  _buildSectionTitle('Ollama 配置'),
+                  _buildSectionTitle(t.t('settings_section_ollama_config')),
                   const SizedBox(height: 12),
                   _buildOllamaConfig(config),
                 ],
-                
+
                 const SizedBox(height: 32),
-                
-                // 模型信息
+
+                // Model info
                 _buildModelInfo(config),
               ],
             ),
@@ -132,10 +147,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               const Icon(Icons.check_circle, color: Colors.white, size: 24),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'API Key 已成功导入并加密存储！',
-                  style: TextStyle(
+                  Translations().t('settings_import_success'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -155,9 +170,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text(
-              'api_key.txt 文件内容已自动清空',
-              style: TextStyle(color: Colors.white, fontSize: 13),
+            child: Text(
+              Translations().t('settings_api_key_cleared_hint'),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),
         ],
@@ -182,10 +197,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               const Icon(Icons.code, color: Colors.white, size: 24),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'API Key 已加密并写入源代码！',
-                  style: TextStyle(
+                  Translations().t('settings_saved_to_source'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -205,9 +220,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text(
-              '请按 R 热重启应用以使更改生效',
-              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            child: Text(
+              Translations().t('settings_hot_restart_hint'),
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -257,7 +272,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isValid ? 'API 已配置' : 'API 未配置',
+                  isValid ? Translations().t('settings_api_configured') : Translations().t('settings_api_not_configured'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -273,6 +288,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 if (config.isGLM && config.glmApiKey.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Key: ${config.apiKeyMask}',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+                if (config.isDeepSeek && config.deepseekApiKey.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     'Key: ${config.apiKeyMask}',
@@ -302,6 +328,112 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildLanguageSelector() {
+    return Consumer<AppProvider>(
+      builder: (context, appProvider, child) {
+        final currentLang = appProvider.language;
+        final t = Translations();
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _buildLanguageOption(
+                appProvider,
+                'zh',
+                t.t('settings_language_zh'),
+                t.t('settings_language_en'),
+                currentLang == 'zh',
+              ),
+              const Divider(height: 1),
+              _buildLanguageOption(
+                appProvider,
+                'en',
+                t.t('settings_language_en'),
+                t.t('settings_language_zh'),
+                currentLang == 'en',
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLanguageOption(
+    AppProvider appProvider,
+    String lang,
+    String displayName,
+    String subtitle,
+    bool isSelected,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          await appProvider.setLanguage(lang);
+          if (mounted) {
+            setState(() {});
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                lang == 'zh' ? Icons.language : Icons.translate,
+                color: isSelected ? const Color(0xFF7C4DFF) : Colors.grey,
+                size: 28,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? const Color(0xFF7C4DFF)
+                            : const Color(0xFF1A237E),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF7C4DFF),
+                  size: 24,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildProviderSelector(APIConfigService config) {
     return Container(
       decoration: BoxDecoration(
@@ -320,19 +452,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildProviderOption(
             config,
             APIProvider.glm,
-            'GLM 在线 API',
-            '智谱AI - 免费 Flash 模型',
+            Translations().t('settings_glm_online'),
+            Translations().t('settings_glm_desc'),
             Icons.cloud,
-            '使用在线服务，需要 API Key',
+            Translations().t('settings_provider_online_hint'),
+          ),
+          const Divider(height: 1),
+          _buildProviderOption(
+            config,
+            APIProvider.deepseek,
+            Translations().t('settings_deepseek_online'),
+            Translations().t('settings_deepseek_desc'),
+            Icons.auto_awesome,
+            Translations().t('settings_provider_online_hint'),
           ),
           const Divider(height: 1),
           _buildProviderOption(
             config,
             APIProvider.ollama,
-            'Ollama 本地 API',
-            '本地部署 - 私有化运行',
+            Translations().t('settings_ollama_local'),
+            Translations().t('settings_ollama_desc'),
             Icons.computer,
-            '需要本地运行 Ollama 服务',
+            Translations().t('settings_provider_ollama_hint'),
           ),
         ],
       ),
@@ -421,7 +562,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildGLMConfig(APIConfigService config) {
     final hasKey = config.glmApiKey.isNotEmpty;
     final hasHardcoded = config.hasHardcodedKey;
-    
+    final t = Translations();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -447,7 +589,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                'API Key',
+                t.t('settings_api_key'),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -462,9 +604,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    '已内置',
-                    style: TextStyle(
+                  child: Text(
+                    t.t('settings_built_in'),
+                    style: const TextStyle(
                       color: Colors.blue,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -478,9 +620,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    '已加密存储',
-                    style: TextStyle(
+                  child: Text(
+                    t.t('settings_encrypted'),
+                    style: const TextStyle(
                       color: Colors.green,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -494,7 +636,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             controller: _glmApiKeyController,
             obscureText: _obscureApiKey,
             decoration: InputDecoration(
-              hintText: hasKey ? '••••••••••••••••' : '输入你的 GLM API Key',
+              hintText: hasKey ? '••••••••••••••••' : t.t('settings_glm_key_hint'),
               hintStyle: TextStyle(color: Colors.grey[400]),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -518,11 +660,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
             onChanged: (value) {
-              print('');
-              print('[SettingsScreen] ========== TextField onChanged ==========');
-              print('[SettingsScreen] 用户输入的值: "$value"');
-              print('[SettingsScreen] 用户输入的值长度: ${value.length}');
-              print('[SettingsScreen] 值是否为空: ${value.isEmpty}');
               
               if (value.isNotEmpty) {
                 print('[SettingsScreen] 值不为空，调用 setGLMApiKey...');
@@ -530,13 +667,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               } else {
                 print('[SettingsScreen] 值为空，跳过保存');
               }
-              print('[SettingsScreen] ========== TextField onChanged 结束 ==========');
               print('');
             },
           ),
           const SizedBox(height: 12),
-          
-          // 开发者模式：保存到源代码按钮
+
+          // Developer mode: save to source code button
           if (!kIsWeb) ...[
             const Divider(height: 24),
             Container(
@@ -554,7 +690,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Icon(Icons.build_circle, color: Colors.orange[700], size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        '开发者模式',
+                        t.t('settings_developer_mode'),
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -565,7 +701,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '将 API Key 加密后写入源代码，下次启动自动加载（生产环境用）',
+                    t.t('settings_developer_mode_desc'),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.orange[600],
@@ -580,12 +716,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               setState(() => _isSavingToSource = true);
                               final success = await config.saveApiKeyToSourceCode();
                               setState(() => _isSavingToSource = false);
-                              
+
                               if (success && mounted) {
                                 setState(() => _showSaveToSourceSuccess = true);
                               } else if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('保存失败，请检查控制台日志')),
+                                  SnackBar(content: Text(t.t('settings_save_failed'))),
                                 );
                               }
                             }
@@ -597,7 +733,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.save, size: 18),
-                      label: Text(_isSavingToSource ? '保存中...' : '保存到源代码'),
+                      label: Text(_isSavingToSource ? t.t('settings_saving') : t.t('settings_save_to_source')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
@@ -625,9 +761,130 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    hasHardcoded 
-                        ? '已使用内置 API Key，可在上方更新后保存'
-                        : '输入 API Key 后，可保存到源代码作为内置默认值',
+                    hasHardcoded
+                        ? t.t('settings_builtin_key_hint')
+                        : t.t('settings_save_to_source_hint'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.purple[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeepseekConfig(APIConfigService config) {
+    final hasKey = config.deepseekApiKey.isNotEmpty;
+    final t = Translations();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasKey ? Icons.verified : Icons.key,
+                color: hasKey ? Colors.green : const Color(0xFF7C4DFF),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                t.t('settings_api_key'),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: hasKey ? Colors.green : Colors.grey[800],
+                ),
+              ),
+              const Spacer(),
+              if (hasKey)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    t.t('settings_encrypted'),
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _deepseekApiKeyController,
+            obscureText: _obscureApiKey,
+            decoration: InputDecoration(
+              hintText: hasKey ? '••••••••••••••••' : t.t('settings_deepseek_key_hint'),
+              hintStyle: TextStyle(color: Colors.grey[400]),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF7C4DFF), width: 2),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureApiKey ? Icons.visibility : Icons.visibility_off,
+                  color: Colors.grey[400],
+                ),
+                onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            onChanged: (value) {
+              if (value.isNotEmpty) {
+                print('[SettingsScreen] DeepSeek Key 不为空，调用 setDeepseekApiKey...');
+                config.setDeepseekApiKey(value);
+              } else {
+                print('[SettingsScreen] DeepSeek Key 值为空，跳过保存');
+              }
+              print('');
+            },
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3E5F5).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.purple[300], size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    t.t('settings_deepseek_fetch_hint'),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.purple[700],
@@ -643,6 +900,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildOllamaConfig(APIConfigService config) {
+    final t = Translations();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -663,9 +922,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               const Icon(Icons.link, color: Color(0xFF7C4DFF), size: 20),
               const SizedBox(width: 8),
-              const Text(
-                '服务地址',
-                style: TextStyle(
+              Text(
+                t.t('settings_ollama_url_label'),
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -707,7 +966,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '确保 Ollama 服务已启动，并安装了 qwen3.5:9b 和 qwen3-vl:8b 模型',
+                    t.t('settings_ollama_hint'),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.blue[700],
@@ -723,6 +982,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildModelInfo(APIConfigService config) {
+    final t = Translations();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -739,17 +1000,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('当前使用的模型'),
+          _buildSectionTitle(t.t('settings_current_model_title')),
           const SizedBox(height: 16),
           _buildModelItem(
-            '文本模型',
+            t.t('settings_text_model'),
             config.currentTextModel,
             Icons.text_fields,
             Colors.blue,
           ),
           const SizedBox(height: 12),
           _buildModelItem(
-            '视觉模型',
+            t.t('settings_vision_model'),
             config.currentVisionModel,
             Icons.image,
             Colors.green,

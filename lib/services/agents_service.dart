@@ -62,7 +62,6 @@ class AgentFactory {
 enum RenderTarget {
   chat,       // C: 聊天区
   blackboard, // B: 黑板
-  workbook,   // W: 做题册
   notebook,   // N: 笔记本
 }
 
@@ -71,7 +70,6 @@ enum RenderTarget {
 class StreamingResponseParser {
   final void Function(String text)? onText;
   final void Function(String content)? onBlackboard;
-  final void Function(String content)? onWorkbook;
   final void Function(String content)? onNotebook;
   final void Function(QuestionResponse? question)? onQuestion;
   final void Function(String? thinking)? onThinking;
@@ -80,7 +78,6 @@ class StreamingResponseParser {
   StreamingResponseParser({
     this.onText,
     this.onBlackboard,
-    this.onWorkbook,
     this.onNotebook,
     this.onQuestion,
     this.onThinking,
@@ -108,7 +105,7 @@ class StreamingResponseParser {
         _processCodeBlockContent();
         continue;
       }
-      
+
       // 检测代码块开始
       if (_buffer.contains('```')) {
         final idx = _buffer.indexOf('```');
@@ -118,7 +115,7 @@ class StreamingResponseParser {
           _processLinePrefixContent(text);
         }
         _buffer = _buffer.substring(idx + 3);
-        
+
         // 检查是否是JSON代码块
         if (_buffer.startsWith('json')) {
           _isJsonCodeBlock = true;
@@ -126,26 +123,24 @@ class StreamingResponseParser {
         } else {
           _isJsonCodeBlock = true; // 默认当作JSON处理
         }
-        
+
         _inCodeBlock = true;
         _codeBlockBuffer = '';
         continue;
       }
-      
+
       // 2. 按行处理（行前缀检测）
       final newlineIdx = _buffer.indexOf('\n');
       if (newlineIdx >= 0) {
         // 提取一行
         final line = _buffer.substring(0, newlineIdx);
         _buffer = _buffer.substring(newlineIdx + 1);
-        
+
         // 处理这一行
         _processLine(line);
       } else {
-        // 没有换行符，检查buffer大小
-        // 如果buffer很长但没有换行，可能是一行很长的内容，需要流式输出
-        if (_buffer.length > 100) {
-          // 检查是否有行首前缀
+        // 没有换行符，立即处理缓冲区内容（不要等待！）
+        if (_buffer.length > 10) {
           _processLinePrefixContent(_buffer);
           _buffer = '';
         }
@@ -156,17 +151,9 @@ class StreamingResponseParser {
   
   /// 处理单行内容
   void _processLine(String line) {
-    // 检测行首前缀（使用 > 格式，避免冒号被TTS读出来）
-    if (line.startsWith('C>')) {
-      _currentTarget = RenderTarget.chat;
-      final content = line.substring(2);
-      _routeContent(content);
-    } else if (line.startsWith('B>')) {
+    // 检测行首前缀（B>/N>，不再有 C>/W>）
+    if (line.startsWith('B>')) {
       _currentTarget = RenderTarget.blackboard;
-      final content = line.substring(2);
-      _routeContent(content);
-    } else if (line.startsWith('W>')) {
-      _currentTarget = RenderTarget.workbook;
       final content = line.substring(2);
       _routeContent(content);
     } else if (line.startsWith('N>')) {
@@ -174,28 +161,24 @@ class StreamingResponseParser {
       final content = line.substring(2);
       _routeContent(content);
     } else {
-      // 无前缀，根据当前目标路由，默认为聊天
+      // 无前缀，默认聊天
+      _currentTarget = RenderTarget.chat;
       _routeContent(line);
     }
   }
   
   /// 处理可能包含行前缀的内容（流式输出场景）
   void _processLinePrefixContent(String content) {
-    // 检查内容开头是否有行前缀（使用 > 格式）
-    if (content.startsWith('C>')) {
-      _currentTarget = RenderTarget.chat;
-      _routeContent(content.substring(2));
-    } else if (content.startsWith('B>')) {
+    // 检查内容开头是否有行前缀（B>/N>）
+    if (content.startsWith('B>')) {
       _currentTarget = RenderTarget.blackboard;
-      _routeContent(content.substring(2));
-    } else if (content.startsWith('W>')) {
-      _currentTarget = RenderTarget.workbook;
       _routeContent(content.substring(2));
     } else if (content.startsWith('N>')) {
       _currentTarget = RenderTarget.notebook;
       _routeContent(content.substring(2));
     } else {
-      // 无前缀，路由到当前目标
+      // 无前缀，默认聊天
+      _currentTarget = RenderTarget.chat;
       _routeContent(content);
     }
   }
@@ -203,16 +186,13 @@ class StreamingResponseParser {
   /// 路由内容到对应组件
   void _routeContent(String content) {
     if (content.isEmpty) return;
-    
+
     switch (_currentTarget) {
       case RenderTarget.chat:
         onText?.call(content);
         break;
       case RenderTarget.blackboard:
         onBlackboard?.call(content);
-        break;
-      case RenderTarget.workbook:
-        onWorkbook?.call(content);
         break;
       case RenderTarget.notebook:
         onNotebook?.call(content);
@@ -340,15 +320,9 @@ Stream<StreamChunk> parseStreamResponse(Stream<String> rawStream) async* {
       chunks.add(StreamChunk(text: text));
     },
     onBlackboard: (content) {
-      // 黑板内容作为文本添加
       chunks.add(StreamChunk(text: '[黑板] $content'));
     },
-    onWorkbook: (content) {
-      // 做题册内容作为文本添加
-      chunks.add(StreamChunk(text: '[做题册] $content'));
-    },
     onNotebook: (content) {
-      // 笔记本内容作为文本添加
       chunks.add(StreamChunk(text: '[笔记本] $content'));
     },
     onQuestion: (question) {

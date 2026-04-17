@@ -74,13 +74,12 @@ class VoiceService {
     
     // 清理文本：
     // 1. 过滤掉 [正在调用工具...] 等信令
-    // 2. 过滤掉行前缀 (C> B> W> N>)，避免被读出来
+    // 2. 过滤掉行前缀 (B> N>)，避免被读出来
     // 3. 过滤掉 LaTeX 公式 ($$...$$)，避免乱读
     String cleanText = text;
     cleanText = cleanText.replaceAll(RegExp(r'\[.*?\]'), '');  // 移除信令
-    cleanText = cleanText.replaceAll(RegExp(r'^[CBWN]>\s*', multiLine: true), '');  // 移除行前缀（新格式）
-    cleanText = cleanText.replaceAll(RegExp(r'^[CBWN]:\s*', multiLine: true), '');  // 移除行前缀（旧格式兼容）
-    cleanText = cleanText.replaceAll(RegExp(r'\$\$.*?\$\$'), '',);  // 移除 LaTeX 公式
+    cleanText = cleanText.replaceAll(RegExp(r'^[BN]>\s*', multiLine: true), '');  // 移除行前缀
+    cleanText = cleanText.replaceAll(RegExp(r'\$\$.*?\$\$'), '');  // 移除 LaTeX 公式
     cleanText = cleanText.replaceAll(RegExp(r'\$[^$]+\$'), '');  // 移除行内公式
     cleanText = cleanText.trim();
     
